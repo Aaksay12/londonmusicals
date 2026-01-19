@@ -1248,7 +1248,15 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       margin-bottom: 12px;
     }
     .card-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
-    .card-venue { color: #f5af19; font-size: 0.95rem; margin-bottom: 10px; }
+    .card-venue { color: #f5af19; font-size: 0.95rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .venue-icons { display: inline-flex; gap: 6px; }
+    .venue-icon {
+      font-size: 0.85rem;
+      text-decoration: none;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .venue-icon:hover { opacity: 1; }
     .card-desc { color: #aaa; font-size: 0.9rem; margin-bottom: 15px; line-height: 1.5; }
     .card-meta {
       display: flex;
@@ -1518,6 +1526,15 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       return html;
     }
 
+    function renderVenueIcons(venueName, venueAddress) {
+      if (!venueAddress) return '';
+      const query = encodeURIComponent(venueName + ' ' + venueAddress);
+      return '<span class="venue-icons">' +
+        '<a href="https://www.google.com/maps/search/?api=1&query=' + query + '" target="_blank" rel="noopener" class="venue-icon" title="View on map">📍</a>' +
+        '<a href="https://www.google.com/maps/dir/?api=1&destination=' + query + '" target="_blank" rel="noopener" class="venue-icon" title="Get directions">🧭</a>' +
+        '</span>';
+    }
+
     function renderCard(m) {
       const endDate = m.end_date
         ? new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -1528,7 +1545,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         renderTicketBadges(m) +
         '<div class="card-badge">' + escapeHtml(m.type) + '</div>' +
         '<h3 class="card-title">' + escapeHtml(m.title) + '</h3>' +
-        '<p class="card-venue">' + escapeHtml(m.venue_name) + '</p>' +
+        '<p class="card-venue"><span>' + escapeHtml(m.venue_name) + '</span>' + renderVenueIcons(m.venue_name, m.venue_address) + '</p>' +
         (m.description ? '<p class="card-desc">' + escapeHtml(m.description) + '</p>' : '') +
         renderScheduleDots(m.schedule) +
         '<div class="card-meta">' +
