@@ -87,8 +87,8 @@ async function handleAdminAPI(request, env, url) {
       const data = await request.json();
 
       const result = await env.DB.prepare(`
-        INSERT INTO musicals (title, venue_name, venue_address, type, start_date, end_date, description, ticket_url, price_from)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO musicals (title, venue_name, venue_address, type, start_date, end_date, description, ticket_url, price_from, schedule, lottery_url, lottery_price, rush_url, rush_price)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         data.title,
         data.venue_name,
@@ -98,7 +98,12 @@ async function handleAdminAPI(request, env, url) {
         data.end_date || null,
         data.description || null,
         data.ticket_url || null,
-        data.price_from || null
+        data.price_from || null,
+        data.schedule || null,
+        data.lottery_url || null,
+        data.lottery_price || null,
+        data.rush_url || null,
+        data.rush_price || null
       ).run();
 
       const newMusical = await env.DB.prepare('SELECT * FROM musicals WHERE id = ?')
@@ -116,7 +121,9 @@ async function handleAdminAPI(request, env, url) {
         UPDATE musicals SET
           title = ?, venue_name = ?, venue_address = ?, type = ?,
           start_date = ?, end_date = ?, description = ?,
-          ticket_url = ?, price_from = ?, updated_at = CURRENT_TIMESTAMP
+          ticket_url = ?, price_from = ?, schedule = ?,
+          lottery_url = ?, lottery_price = ?, rush_url = ?, rush_price = ?,
+          updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).bind(
         data.title,
@@ -128,6 +135,11 @@ async function handleAdminAPI(request, env, url) {
         data.description || null,
         data.ticket_url || null,
         data.price_from || null,
+        data.schedule || null,
+        data.lottery_url || null,
+        data.lottery_price || null,
+        data.rush_url || null,
+        data.rush_price || null,
         id
       ).run();
 
@@ -151,8 +163,8 @@ async function handleAdminAPI(request, env, url) {
       for (const row of records) {
         try {
           await env.DB.prepare(`
-            INSERT INTO musicals (title, venue_name, venue_address, type, start_date, end_date, description, ticket_url, price_from)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO musicals (title, venue_name, venue_address, type, start_date, end_date, description, ticket_url, price_from, schedule, lottery_url, lottery_price, rush_url, rush_price)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).bind(
             row.title,
             row.venue_name,
@@ -162,7 +174,12 @@ async function handleAdminAPI(request, env, url) {
             row.end_date || null,
             row.description || null,
             row.ticket_url || null,
-            row.price_from ? parseFloat(row.price_from) : null
+            row.price_from ? parseFloat(row.price_from) : null,
+            row.schedule || null,
+            row.lottery_url || null,
+            row.lottery_price ? parseFloat(row.lottery_price) : null,
+            row.rush_url || null,
+            row.rush_price ? parseFloat(row.rush_price) : null
           ).run();
           imported++;
         } catch (err) {
@@ -256,7 +273,13 @@ async function generateAdminHTML(env) {
 
 // Public HTML generator
 async function generateHTML(env) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  // Calculate 3 months from today
+  const threeMonths = new Date(today);
+  threeMonths.setMonth(threeMonths.getMonth() + 3);
+  const threeMonthsStr = threeMonths.toISOString().split('T')[0];
 
   // Fetch ALL musicals for client-side date filtering
   const { results: allMusicals } = await env.DB.prepare(`
@@ -265,8 +288,9 @@ async function generateHTML(env) {
 
   return HTML_TEMPLATE
     .replaceAll('{{MUSICALS_DATA}}', JSON.stringify(allMusicals))
-    .replaceAll('{{TODAY_DATE}}', today)
-    .replaceAll('{{TODAY}}', new Date().toLocaleDateString('en-GB', {
+    .replaceAll('{{TODAY_DATE}}', todayStr)
+    .replaceAll('{{THREE_MONTHS_DATE}}', threeMonthsStr)
+    .replaceAll('{{TODAY}}', today.toLocaleDateString('en-GB', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     }));
 }
@@ -353,6 +377,13 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       border-color: #e94560;
     }
     textarea { resize: vertical; min-height: 80px; }
+    .schedule-grid { background: #0f3460; border-radius: 8px; padding: 15px; margin-top: 8px; }
+    .schedule-header, .schedule-row { display: grid; grid-template-columns: 70px repeat(7, 1fr); gap: 8px; align-items: center; }
+    .schedule-header { margin-bottom: 10px; font-size: 0.8rem; color: #888; text-align: center; }
+    .schedule-header span:first-child { text-align: left; }
+    .schedule-row { margin-bottom: 8px; }
+    .schedule-row span { font-size: 0.85rem; color: #aaa; }
+    .schedule-row input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; accent-color: #e94560; justify-self: center; }
     .btn-row { display: flex; gap: 10px; margin-top: 15px; }
     .btn {
       padding: 12px 24px;
@@ -472,9 +503,44 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
             <label for="ticket_url">Ticket URL</label>
             <input type="url" id="ticket_url">
           </div>
+          <div class="form-group">
+            <label for="lottery_url">Lottery URL</label>
+            <input type="url" id="lottery_url">
+          </div>
+          <div class="form-group">
+            <label for="lottery_price">Lottery Price (£)</label>
+            <input type="number" id="lottery_price" step="0.01" min="0">
+          </div>
+          <div class="form-group">
+            <label for="rush_url">Rush URL</label>
+            <input type="url" id="rush_url">
+          </div>
+          <div class="form-group">
+            <label for="rush_price">Rush Price (£)</label>
+            <input type="number" id="rush_price" step="0.01" min="0">
+          </div>
           <div class="form-group full">
             <label for="description">Description</label>
             <textarea id="description"></textarea>
+          </div>
+          <div class="form-group full">
+            <label>Weekly Schedule <small style="color:#888">(check performance times)</small></label>
+            <div class="schedule-grid">
+              <div class="schedule-header">
+                <span></span>
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+              </div>
+              <div class="schedule-row">
+                <span>Matinee</span>
+                <input type="checkbox" id="sch_mon_m"><input type="checkbox" id="sch_tue_m"><input type="checkbox" id="sch_wed_m">
+                <input type="checkbox" id="sch_thu_m"><input type="checkbox" id="sch_fri_m"><input type="checkbox" id="sch_sat_m"><input type="checkbox" id="sch_sun_m">
+              </div>
+              <div class="schedule-row">
+                <span>Evening</span>
+                <input type="checkbox" id="sch_mon_e"><input type="checkbox" id="sch_tue_e"><input type="checkbox" id="sch_wed_e">
+                <input type="checkbox" id="sch_thu_e"><input type="checkbox" id="sch_fri_e"><input type="checkbox" id="sch_sat_e"><input type="checkbox" id="sch_sun_e">
+              </div>
+            </div>
           </div>
         </div>
         <div class="btn-row">
@@ -571,11 +637,43 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
+    const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+    function getScheduleFromForm() {
+      const schedule = {};
+      days.forEach(day => {
+        const mat = document.getElementById('sch_' + day + '_m').checked;
+        const eve = document.getElementById('sch_' + day + '_e').checked;
+        if (mat || eve) {
+          schedule[day] = { m: mat, e: eve };
+        }
+      });
+      return Object.keys(schedule).length ? JSON.stringify(schedule) : null;
+    }
+
+    function setScheduleToForm(scheduleJson) {
+      days.forEach(day => {
+        document.getElementById('sch_' + day + '_m').checked = false;
+        document.getElementById('sch_' + day + '_e').checked = false;
+      });
+      if (!scheduleJson) return;
+      try {
+        const schedule = JSON.parse(scheduleJson);
+        days.forEach(day => {
+          if (schedule[day]) {
+            document.getElementById('sch_' + day + '_m').checked = !!schedule[day].m;
+            document.getElementById('sch_' + day + '_e').checked = !!schedule[day].e;
+          }
+        });
+      } catch (e) {}
+    }
+
     function resetForm() {
       document.getElementById('musicalForm').reset();
       document.getElementById('editId').value = '';
       document.getElementById('formTitle').textContent = 'Add New Musical';
       document.getElementById('submitBtn').textContent = 'Add Musical';
+      setScheduleToForm(null);
     }
 
     function editMusical(id) {
@@ -591,7 +689,12 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       document.getElementById('end_date').value = m.end_date || '';
       document.getElementById('price_from').value = m.price_from || '';
       document.getElementById('ticket_url').value = m.ticket_url || '';
+      document.getElementById('lottery_url').value = m.lottery_url || '';
+      document.getElementById('lottery_price').value = m.lottery_price || '';
+      document.getElementById('rush_url').value = m.rush_url || '';
+      document.getElementById('rush_price').value = m.rush_price || '';
       document.getElementById('description').value = m.description || '';
+      setScheduleToForm(m.schedule);
 
       document.getElementById('formTitle').textContent = 'Edit Musical';
       document.getElementById('submitBtn').textContent = 'Update Musical';
@@ -626,7 +729,12 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
         end_date: document.getElementById('end_date').value || null,
         price_from: document.getElementById('price_from').value ? parseFloat(document.getElementById('price_from').value) : null,
         ticket_url: document.getElementById('ticket_url').value || null,
+        lottery_url: document.getElementById('lottery_url').value || null,
+        lottery_price: document.getElementById('lottery_price').value ? parseFloat(document.getElementById('lottery_price').value) : null,
+        rush_url: document.getElementById('rush_url').value || null,
+        rush_price: document.getElementById('rush_price').value ? parseFloat(document.getElementById('rush_price').value) : null,
         description: document.getElementById('description').value || null,
+        schedule: getScheduleFromForm(),
       };
 
       try {
@@ -923,7 +1031,34 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       padding: 24px;
       transition: transform 0.3s, box-shadow 0.3s;
       border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
     }
+    .ticket-badges {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .ticket-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: #fff;
+      transition: background 0.2s;
+    }
+    .ticket-badge:hover {
+      background: rgba(0, 0, 0, 0.8);
+    }
+    .ticket-badge.lottery { border: 1px solid #a855f7; }
+    .ticket-badge.rush { border: 1px solid #f59e0b; }
     .card:hover {
       transform: translateY(-5px);
       box-shadow: 0 15px 40px rgba(233, 69, 96, 0.2);
@@ -963,6 +1098,33 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       transition: opacity 0.3s, transform 0.3s;
     }
     .card-btn:hover { opacity: 0.9; transform: scale(1.02); }
+    .schedule-dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 12px 0;
+      padding: 10px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+    }
+    .day-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #333;
+    }
+    .dot.on { background: #e94560; }
+    .day-label {
+      font-size: 9px;
+      color: #666;
+      margin-top: 2px;
+    }
     .footer {
       text-align: center;
       padding: 40px 20px;
@@ -1067,7 +1229,12 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
   <script>
     const allMusicals = {{MUSICALS_DATA}};
     const defaultDate = '{{TODAY_DATE}}';
+    const defaultEndDate = '{{THREE_MONTHS_DATE}}';
     let typeFilter = 'all';
+
+    // Set default date range
+    document.getElementById('dateFrom').value = defaultDate;
+    document.getElementById('dateTo').value = defaultEndDate;
 
     function isShowActive(show, fromDate, toDate) {
       const start = show.start_date;
@@ -1082,6 +1249,44 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       return div.innerHTML;
     }
 
+    function renderScheduleDots(scheduleJson) {
+      if (!scheduleJson) return '';
+      try {
+        const schedule = JSON.parse(scheduleJson);
+        const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+        const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+        let html = '<div class="schedule-dots">';
+        days.forEach((day, i) => {
+          const hasM = schedule[day] && schedule[day].m;
+          const hasE = schedule[day] && schedule[day].e;
+          html += '<div class="day-col">' +
+            '<span class="dot ' + (hasM ? 'on' : '') + '"></span>' +
+            '<span class="dot ' + (hasE ? 'on' : '') + '"></span>' +
+            '<span class="day-label">' + labels[i] + '</span>' +
+            '</div>';
+        });
+        html += '</div>';
+        return html;
+      } catch (e) { return ''; }
+    }
+
+    function renderTicketBadges(m) {
+      let html = '';
+      if (m.lottery_url || m.rush_url) {
+        html = '<div class="ticket-badges">';
+        if (m.lottery_url) {
+          const lotteryPrice = m.lottery_price ? '£' + m.lottery_price.toFixed(0) : '';
+          html += '<a href="' + escapeHtml(m.lottery_url) + '" target="_blank" rel="noopener" class="ticket-badge lottery">🎲 ' + lotteryPrice + '</a>';
+        }
+        if (m.rush_url) {
+          const rushPrice = m.rush_price ? '£' + m.rush_price.toFixed(0) : '';
+          html += '<a href="' + escapeHtml(m.rush_url) + '" target="_blank" rel="noopener" class="ticket-badge rush">⚡ ' + rushPrice + '</a>';
+        }
+        html += '</div>';
+      }
+      return html;
+    }
+
     function renderCard(m) {
       const endDate = m.end_date
         ? new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -1089,10 +1294,12 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       const price = m.price_from ? 'From £' + m.price_from.toFixed(2) : '';
 
       return '<div class="card">' +
+        renderTicketBadges(m) +
         '<div class="card-badge">' + escapeHtml(m.type) + '</div>' +
         '<h3 class="card-title">' + escapeHtml(m.title) + '</h3>' +
         '<p class="card-venue">' + escapeHtml(m.venue_name) + '</p>' +
         (m.description ? '<p class="card-desc">' + escapeHtml(m.description) + '</p>' : '') +
+        renderScheduleDots(m.schedule) +
         '<div class="card-meta">' +
         '<span class="card-date">Until ' + endDate + '</span>' +
         (price ? '<span class="card-price">' + price + '</span>' : '') +
@@ -1103,7 +1310,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
     function render() {
       const fromDate = document.getElementById('dateFrom').value || defaultDate;
-      const toDate = document.getElementById('dateTo').value || defaultDate;
+      const toDate = document.getElementById('dateTo').value || defaultEndDate;
 
       const filtered = allMusicals.filter(m => isShowActive(m, fromDate, toDate));
 
