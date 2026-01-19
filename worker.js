@@ -226,24 +226,15 @@ async function generateAdminHTML(env) {
 // Public HTML generator
 async function generateHTML(env) {
   const today = new Date().toISOString().split('T')[0];
-  const { results: musicals } = await env.DB.prepare(`
-    SELECT * FROM musicals
-    WHERE start_date <= ? AND (end_date IS NULL OR end_date >= ?)
-    ORDER BY type, title
-  `).bind(today, today).all();
 
-  const westEnd = musicals.filter(m => m.type === 'West End');
-  const offWestEnd = musicals.filter(m => m.type === 'Off West End');
-  const dramaSchool = musicals.filter(m => m.type === 'Drama School');
+  // Fetch ALL musicals for client-side date filtering
+  const { results: allMusicals } = await env.DB.prepare(`
+    SELECT * FROM musicals ORDER BY type, title
+  `).all();
 
   return HTML_TEMPLATE
-    .replaceAll('{{WEST_END_COUNT}}', westEnd.length)
-    .replaceAll('{{OFF_WEST_END_COUNT}}', offWestEnd.length)
-    .replaceAll('{{DRAMA_SCHOOL_COUNT}}', dramaSchool.length)
-    .replaceAll('{{TOTAL_COUNT}}', musicals.length)
-    .replaceAll('{{WEST_END_CARDS}}', westEnd.map(renderCard).join(''))
-    .replaceAll('{{OFF_WEST_END_CARDS}}', offWestEnd.map(renderCard).join(''))
-    .replaceAll('{{DRAMA_SCHOOL_CARDS}}', dramaSchool.map(renderCard).join(''))
+    .replaceAll('{{MUSICALS_DATA}}', JSON.stringify(allMusicals))
+    .replaceAll('{{TODAY_DATE}}', today)
     .replaceAll('{{TODAY}}', new Date().toLocaleDateString('en-GB', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     }));
@@ -439,7 +430,7 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
             <input type="date" id="start_date" required>
           </div>
           <div class="form-group">
-            <label for="end_date">End Date</label>
+            <label for="end_date">End Date <small style="color:#888">(leave empty for Open Run)</small></label>
             <input type="date" id="end_date">
           </div>
           <div class="form-group">
@@ -499,7 +490,7 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       document.getElementById('tableBody').innerHTML = filtered.map(m => {
         const isActive = m.start_date <= today && (!m.end_date || m.end_date >= today);
         const typeClass = m.type.toLowerCase().replace(/ /g, '-');
-        const dates = m.end_date ? \`\${m.start_date} → \${m.end_date}\` : \`\${m.start_date} → Open\`;
+        const dates = m.end_date ? \`\${m.start_date} → \${m.end_date}\` : \`\${m.start_date} → Open Run\`;
 
         return \`
           <tr>
@@ -708,6 +699,55 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       transition: all 0.3s;
     }
     .filter-btn:hover, .filter-btn.active { background: #e94560; }
+    .date-filter {
+      display: flex;
+      justify-content: center;
+      padding: 15px 20px;
+    }
+    .date-filter-inner {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      background: rgba(255,255,255,0.1);
+      padding: 12px 20px;
+      border-radius: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .date-filter label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+    .date-filter input[type="date"] {
+      padding: 8px 12px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #0f3460;
+      color: #fff;
+      font-size: 0.9rem;
+    }
+    .date-filter input[type="date"]:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+    .date-filter-btn {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      background: #e94560;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: opacity 0.2s;
+    }
+    .date-filter-btn:hover { opacity: 0.9; }
+    .date-filter-btn.secondary {
+      background: #444;
+    }
     .section { padding: 30px 0; }
     .section-title {
       font-size: 1.5rem;
@@ -830,29 +870,44 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     <button class="filter-btn" data-filter="drama-school">Drama Schools</button>
   </div>
 
+  <div class="date-filter">
+    <div class="date-filter-inner">
+      <label>
+        <span>From</span>
+        <input type="date" id="dateFrom">
+      </label>
+      <label>
+        <span>To</span>
+        <input type="date" id="dateTo">
+      </label>
+      <button class="date-filter-btn" id="applyDateFilter">Apply</button>
+      <button class="date-filter-btn secondary" id="clearDateFilter">Clear</button>
+    </div>
+  </div>
+
   <main class="container">
     <section class="section" data-section="west-end">
       <h2 class="section-title">
         <span>West End</span>
-        <span class="section-count">{{WEST_END_COUNT}} shows</span>
+        <span class="section-count" id="westEndCount">0 shows</span>
       </h2>
-      <div class="cards-grid">{{WEST_END_CARDS}}</div>
+      <div class="cards-grid" id="westEndCards"></div>
     </section>
 
     <section class="section" data-section="off-west-end">
       <h2 class="section-title">
         <span>Off West End</span>
-        <span class="section-count">{{OFF_WEST_END_COUNT}} shows</span>
+        <span class="section-count" id="offWestEndCount">0 shows</span>
       </h2>
-      <div class="cards-grid">{{OFF_WEST_END_CARDS}}</div>
+      <div class="cards-grid" id="offWestEndCards"></div>
     </section>
 
     <section class="section" data-section="drama-school">
       <h2 class="section-title">
         <span>Drama School Productions</span>
-        <span class="section-count">{{DRAMA_SCHOOL_COUNT}} shows</span>
+        <span class="section-count" id="dramaSchoolCount">0 shows</span>
       </h2>
-      <div class="cards-grid">{{DRAMA_SCHOOL_CARDS}}</div>
+      <div class="cards-grid" id="dramaSchoolCards"></div>
     </section>
   </main>
 
@@ -862,20 +917,96 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
   </footer>
 
   <script>
+    const allMusicals = {{MUSICALS_DATA}};
+    const defaultDate = '{{TODAY_DATE}}';
+    let typeFilter = 'all';
+
+    function isShowActive(show, fromDate, toDate) {
+      const start = show.start_date;
+      const end = show.end_date || '9999-12-31';
+      return start <= toDate && end >= fromDate;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function renderCard(m) {
+      const endDate = m.end_date
+        ? new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Open run';
+      const price = m.price_from ? 'From £' + m.price_from.toFixed(2) : '';
+
+      return '<div class="card">' +
+        '<div class="card-badge">' + escapeHtml(m.type) + '</div>' +
+        '<h3 class="card-title">' + escapeHtml(m.title) + '</h3>' +
+        '<p class="card-venue">' + escapeHtml(m.venue_name) + '</p>' +
+        (m.description ? '<p class="card-desc">' + escapeHtml(m.description) + '</p>' : '') +
+        '<div class="card-meta">' +
+        '<span class="card-date">Until ' + endDate + '</span>' +
+        (price ? '<span class="card-price">' + price + '</span>' : '') +
+        '</div>' +
+        (m.ticket_url ? '<a href="' + escapeHtml(m.ticket_url) + '" target="_blank" rel="noopener" class="card-btn">Get Tickets</a>' : '') +
+        '</div>';
+    }
+
+    function render() {
+      const fromDate = document.getElementById('dateFrom').value || defaultDate;
+      const toDate = document.getElementById('dateTo').value || defaultDate;
+
+      const filtered = allMusicals.filter(m => isShowActive(m, fromDate, toDate));
+
+      const westEnd = filtered.filter(m => m.type === 'West End');
+      const offWestEnd = filtered.filter(m => m.type === 'Off West End');
+      const dramaSchool = filtered.filter(m => m.type === 'Drama School');
+
+      document.getElementById('westEndCards').innerHTML = westEnd.map(renderCard).join('');
+      document.getElementById('offWestEndCards').innerHTML = offWestEnd.map(renderCard).join('');
+      document.getElementById('dramaSchoolCards').innerHTML = dramaSchool.map(renderCard).join('');
+
+      document.getElementById('westEndCount').textContent = westEnd.length + ' shows';
+      document.getElementById('offWestEndCount').textContent = offWestEnd.length + ' shows';
+      document.getElementById('dramaSchoolCount').textContent = dramaSchool.length + ' shows';
+
+      // Update stats
+      document.querySelectorAll('.stat-value')[0].textContent = filtered.length;
+      document.querySelectorAll('.stat-value')[1].textContent = westEnd.length;
+      document.querySelectorAll('.stat-value')[2].textContent = offWestEnd.length;
+      document.querySelectorAll('.stat-value')[3].textContent = dramaSchool.length;
+
+      // Apply type filter
+      document.querySelectorAll('.section').forEach(section => {
+        if (typeFilter === 'all') {
+          section.classList.remove('hidden');
+        } else {
+          section.classList.toggle('hidden', section.dataset.section !== typeFilter);
+        }
+      });
+    }
+
+    // Type filter buttons
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const filter = btn.dataset.filter;
-        document.querySelectorAll('.section').forEach(section => {
-          if (filter === 'all') {
-            section.classList.remove('hidden');
-          } else {
-            section.classList.toggle('hidden', section.dataset.section !== filter);
-          }
-        });
+        typeFilter = btn.dataset.filter;
+        render();
       });
     });
+
+    // Date filter
+    document.getElementById('applyDateFilter').addEventListener('click', render);
+    document.getElementById('clearDateFilter').addEventListener('click', () => {
+      document.getElementById('dateFrom').value = '';
+      document.getElementById('dateTo').value = '';
+      render();
+    });
+
+    // Initial render
+    render();
   </script>
 </body>
 </html>`;
