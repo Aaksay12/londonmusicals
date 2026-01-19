@@ -383,7 +383,16 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
     .schedule-header span:first-child { text-align: left; }
     .schedule-row { margin-bottom: 8px; }
     .schedule-row span { font-size: 0.85rem; color: #aaa; }
-    .schedule-row input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; accent-color: #e94560; justify-self: center; }
+    .schedule-row input[type="time"] {
+      padding: 4px;
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 0.8rem;
+      width: 100%;
+    }
+    .schedule-row input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     .btn-row { display: flex; gap: 10px; margin-top: 15px; }
     .btn {
       padding: 12px 24px;
@@ -524,7 +533,7 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
             <textarea id="description"></textarea>
           </div>
           <div class="form-group full">
-            <label>Weekly Schedule <small style="color:#888">(check performance times)</small></label>
+            <label>Weekly Schedule <small style="color:#888">(enter show times, leave empty if no performance)</small></label>
             <div class="schedule-grid">
               <div class="schedule-header">
                 <span></span>
@@ -532,13 +541,13 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
               </div>
               <div class="schedule-row">
                 <span>Matinee</span>
-                <input type="checkbox" id="sch_mon_m"><input type="checkbox" id="sch_tue_m"><input type="checkbox" id="sch_wed_m">
-                <input type="checkbox" id="sch_thu_m"><input type="checkbox" id="sch_fri_m"><input type="checkbox" id="sch_sat_m"><input type="checkbox" id="sch_sun_m">
+                <input type="time" id="sch_mon_m"><input type="time" id="sch_tue_m"><input type="time" id="sch_wed_m">
+                <input type="time" id="sch_thu_m"><input type="time" id="sch_fri_m"><input type="time" id="sch_sat_m"><input type="time" id="sch_sun_m">
               </div>
               <div class="schedule-row">
                 <span>Evening</span>
-                <input type="checkbox" id="sch_mon_e"><input type="checkbox" id="sch_tue_e"><input type="checkbox" id="sch_wed_e">
-                <input type="checkbox" id="sch_thu_e"><input type="checkbox" id="sch_fri_e"><input type="checkbox" id="sch_sat_e"><input type="checkbox" id="sch_sun_e">
+                <input type="time" id="sch_mon_e"><input type="time" id="sch_tue_e"><input type="time" id="sch_wed_e">
+                <input type="time" id="sch_thu_e"><input type="time" id="sch_fri_e"><input type="time" id="sch_sat_e"><input type="time" id="sch_sun_e">
               </div>
             </div>
           </div>
@@ -642,10 +651,10 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
     function getScheduleFromForm() {
       const schedule = {};
       days.forEach(day => {
-        const mat = document.getElementById('sch_' + day + '_m').checked;
-        const eve = document.getElementById('sch_' + day + '_e').checked;
+        const mat = document.getElementById('sch_' + day + '_m').value;
+        const eve = document.getElementById('sch_' + day + '_e').value;
         if (mat || eve) {
-          schedule[day] = { m: mat, e: eve };
+          schedule[day] = { m: mat || null, e: eve || null };
         }
       });
       return Object.keys(schedule).length ? JSON.stringify(schedule) : null;
@@ -653,16 +662,19 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
 
     function setScheduleToForm(scheduleJson) {
       days.forEach(day => {
-        document.getElementById('sch_' + day + '_m').checked = false;
-        document.getElementById('sch_' + day + '_e').checked = false;
+        document.getElementById('sch_' + day + '_m').value = '';
+        document.getElementById('sch_' + day + '_e').value = '';
       });
       if (!scheduleJson) return;
       try {
         const schedule = JSON.parse(scheduleJson);
         days.forEach(day => {
           if (schedule[day]) {
-            document.getElementById('sch_' + day + '_m').checked = !!schedule[day].m;
-            document.getElementById('sch_' + day + '_e').checked = !!schedule[day].e;
+            // Handle both old boolean format and new time format
+            const mat = schedule[day].m;
+            const eve = schedule[day].e;
+            document.getElementById('sch_' + day + '_m').value = (typeof mat === 'string') ? mat : '';
+            document.getElementById('sch_' + day + '_e').value = (typeof eve === 'string') ? eve : '';
           }
         });
       } catch (e) {}
@@ -1004,6 +1016,10 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     .date-filter-btn.secondary {
       background: #444;
     }
+    .date-separator {
+      color: #555;
+      font-size: 1.2rem;
+    }
     .section { padding: 30px 0; }
     .section-title {
       font-size: 1.5rem;
@@ -1098,10 +1114,10 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       transition: opacity 0.3s, transform 0.3s;
     }
     .card-btn:hover { opacity: 0.9; transform: scale(1.02); }
-    .schedule-dots {
+    .schedule-grid-public {
       display: flex;
       justify-content: center;
-      gap: 8px;
+      gap: 6px;
       margin: 12px 0;
       padding: 10px;
       background: rgba(0,0,0,0.2);
@@ -1111,19 +1127,24 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
+      gap: 2px;
+      min-width: 32px;
     }
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #333;
-    }
-    .dot.on { background: #e94560; }
     .day-label {
+      font-size: 10px;
+      color: #888;
+      font-weight: 600;
+    }
+    .show-time {
       font-size: 9px;
-      color: #666;
-      margin-top: 2px;
+      color: #4ade80;
+      background: rgba(74, 222, 128, 0.1);
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .show-time.empty {
+      color: #444;
+      background: transparent;
     }
     .footer {
       text-align: center;
@@ -1182,6 +1203,10 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
   <div class="date-filter">
     <div class="date-filter-inner">
+      <button class="date-filter-btn secondary" id="btnToday">Today</button>
+      <button class="date-filter-btn secondary" id="btnThisWeek">This Week</button>
+      <button class="date-filter-btn secondary" id="btnThisMonth">This Month</button>
+      <span class="date-separator">|</span>
       <label>
         <span>From</span>
         <input type="date" id="dateFrom">
@@ -1236,10 +1261,46 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     document.getElementById('dateFrom').value = defaultDate;
     document.getElementById('dateTo').value = defaultEndDate;
 
+    function getDayOfWeek(dateStr) {
+      // Parse YYYY-MM-DD manually to avoid timezone issues
+      const parts = dateStr.split('-');
+      const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      return date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    }
+
+    function hasPerformance(value) {
+      // Handle both boolean (old format) and string time (new format)
+      if (typeof value === 'string') return value.length > 0;
+      return !!value;
+    }
+
     function isShowActive(show, fromDate, toDate) {
       const start = show.start_date;
       const end = show.end_date || '9999-12-31';
-      return start <= toDate && end >= fromDate;
+
+      // Basic date range check
+      if (!(start <= toDate && end >= fromDate)) {
+        return false;
+      }
+
+      // If single day selected and show has schedule, check if it plays that day
+      if (fromDate === toDate && show.schedule) {
+        try {
+          const schedule = JSON.parse(show.schedule);
+          const dayIndex = getDayOfWeek(fromDate);
+          const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+          const dayKey = dayKeys[dayIndex];
+
+          // If schedule exists but this day has no performances, filter out
+          if (!schedule[dayKey] || (!hasPerformance(schedule[dayKey].m) && !hasPerformance(schedule[dayKey].e))) {
+            return false;
+          }
+        } catch (e) {
+          // If schedule parsing fails, include the show
+        }
+      }
+
+      return true;
     }
 
     function escapeHtml(text) {
@@ -1249,20 +1310,33 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       return div.innerHTML;
     }
 
+    function formatTime(timeStr) {
+      if (!timeStr) return '-';
+      // Convert 24h format (19:30) to 12h format (7:30pm)
+      const [h, m] = timeStr.split(':');
+      const hour = parseInt(h);
+      const suffix = hour >= 12 ? 'pm' : 'am';
+      const hour12 = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+      return hour12 + ':' + m + suffix;
+    }
+
     function renderScheduleDots(scheduleJson) {
       if (!scheduleJson) return '';
       try {
         const schedule = JSON.parse(scheduleJson);
         const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
         const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-        let html = '<div class="schedule-dots">';
+        let html = '<div class="schedule-grid-public">';
         days.forEach((day, i) => {
-          const hasM = schedule[day] && schedule[day].m;
-          const hasE = schedule[day] && schedule[day].e;
+          const mat = schedule[day] && schedule[day].m;
+          const eve = schedule[day] && schedule[day].e;
+          // Handle both old boolean format and new time format
+          const matTime = (typeof mat === 'string') ? formatTime(mat) : (mat ? '•' : '-');
+          const eveTime = (typeof eve === 'string') ? formatTime(eve) : (eve ? '•' : '-');
           html += '<div class="day-col">' +
-            '<span class="dot ' + (hasM ? 'on' : '') + '"></span>' +
-            '<span class="dot ' + (hasE ? 'on' : '') + '"></span>' +
             '<span class="day-label">' + labels[i] + '</span>' +
+            '<span class="show-time ' + (matTime === '-' ? 'empty' : '') + '">' + matTime + '</span>' +
+            '<span class="show-time ' + (eveTime === '-' ? 'empty' : '') + '">' + eveTime + '</span>' +
             '</div>';
         });
         html += '</div>';
@@ -1355,8 +1429,32 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     // Date filter
     document.getElementById('applyDateFilter').addEventListener('click', render);
     document.getElementById('clearDateFilter').addEventListener('click', () => {
-      document.getElementById('dateFrom').value = '';
-      document.getElementById('dateTo').value = '';
+      document.getElementById('dateFrom').value = defaultDate;
+      document.getElementById('dateTo').value = defaultEndDate;
+      render();
+    });
+
+    // Quick date filters
+    document.getElementById('btnToday').addEventListener('click', () => {
+      document.getElementById('dateFrom').value = defaultDate;
+      document.getElementById('dateTo').value = defaultDate;
+      render();
+    });
+
+    document.getElementById('btnThisWeek').addEventListener('click', () => {
+      const today = new Date(defaultDate);
+      const endOfWeek = new Date(today);
+      endOfWeek.setDate(today.getDate() + (7 - today.getDay()));
+      document.getElementById('dateFrom').value = defaultDate;
+      document.getElementById('dateTo').value = endOfWeek.toISOString().split('T')[0];
+      render();
+    });
+
+    document.getElementById('btnThisMonth').addEventListener('click', () => {
+      const today = new Date(defaultDate);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      document.getElementById('dateFrom').value = defaultDate;
+      document.getElementById('dateTo').value = endOfMonth.toISOString().split('T')[0];
       render();
     });
 
