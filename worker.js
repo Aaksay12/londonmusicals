@@ -180,7 +180,8 @@ async function handleAdminAPI(request, env, url) {
 
       for (const row of records) {
         try {
-          const runId = generateRunId(row.title, row.venue_name, row.start_date);
+          // Use provided run_id or generate one
+          const runId = (row.run_id && row.run_id.trim()) ? row.run_id.trim() : generateRunId(row.title, row.venue_name, row.start_date);
 
           // Check if record exists
           const existing = await env.DB.prepare('SELECT id FROM musicals WHERE run_id = ?').bind(runId).first();
@@ -243,6 +244,19 @@ async function handleAdminAPI(request, env, url) {
       }
 
       return new Response(JSON.stringify({ inserted, updated, errors }), { headers });
+    }
+
+    // POST /admin/api/delete-all - Delete all records (requires password confirmation)
+    if (url.pathname === '/admin/api/delete-all' && request.method === 'POST') {
+      const { password } = await request.json();
+
+      // Verify password matches
+      if (password !== env.ADMIN_PASSWORD) {
+        return new Response(JSON.stringify({ error: 'Invalid password' }), { status: 401, headers });
+      }
+
+      const { meta } = await env.DB.prepare('DELETE FROM musicals').run();
+      return new Response(JSON.stringify({ deleted: meta.changes }), { headers });
     }
 
     // POST /admin/api/migrate-run-ids - One-time migration to populate run_ids
@@ -644,6 +658,7 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
         <button type="button" class="btn btn-secondary" id="downloadTemplate">Download Template</button>
         <button type="button" class="btn btn-secondary" id="exportBtn">Export Data</button>
         <button type="button" class="btn btn-secondary" id="migrateBtn" style="background:#8b5cf6;">Migrate Run IDs</button>
+        <button type="button" class="btn btn-danger" id="deleteAllBtn">Delete All</button>
       </div>
       <div id="importResult" style="margin-top:15px;"></div>
     </div>
@@ -952,6 +967,33 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       a.download = 'musicals_template.csv';
       a.click();
       URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('deleteAllBtn').addEventListener('click', async () => {
+      if (!confirm('WARNING: This will DELETE ALL ' + musicals.length + ' records. This cannot be undone!')) return;
+
+      const password = prompt('Enter admin password to confirm:');
+      if (!password) return;
+
+      try {
+        const res = await fetch('/admin/api/delete-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+          showToast(result.error || 'Delete failed', 'error');
+          return;
+        }
+
+        showToast('Deleted ' + result.deleted + ' records');
+        setTimeout(() => location.reload(), 1000);
+      } catch (err) {
+        showToast('Delete failed: ' + err.message, 'error');
+      }
     });
 
     document.getElementById('migrateBtn').addEventListener('click', async () => {
