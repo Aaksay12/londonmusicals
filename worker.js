@@ -1541,9 +1541,24 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     }
 
     function renderCard(m) {
-      const endDate = m.end_date
-        ? new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
-        : 'Open run';
+      const today = new Date().toISOString().split('T')[0];
+      const hasStarted = m.start_date <= today;
+
+      let dateText;
+      if (hasStarted) {
+        // Show started - display end date only
+        dateText = m.end_date
+          ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
+          : 'Open run';
+      } else {
+        // Show not started yet - display both dates
+        const startFormatted = new Date(m.start_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
+        const endFormatted = m.end_date
+          ? new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
+          : 'Open run';
+        dateText = 'From ' + startFormatted + ' until ' + endFormatted;
+      }
+
       const price = m.price_from ? 'From £' + m.price_from.toFixed(2) : '';
 
       return '<div class="card">' +
@@ -1554,7 +1569,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         (m.description ? '<p class="card-desc">' + escapeHtml(m.description) + '</p>' : '') +
         renderScheduleDots(m.schedule) +
         '<div class="card-meta">' +
-        '<span class="card-date">Until ' + endDate + '</span>' +
+        '<span class="card-date">' + dateText + '</span>' +
         (price ? '<span class="card-price">' + price + '</span>' : '') +
         '</div>' +
         (m.ticket_url ? '<a href="' + escapeHtml(m.ticket_url) + '" target="_blank" rel="noopener" class="card-btn">Get Tickets</a>' : '') +
