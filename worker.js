@@ -26,6 +26,19 @@ function unauthorizedResponse() {
   });
 }
 
+// Generate normalized slug from title, venue, and start_date
+function generateRunId(title, venueName, startDate) {
+  const normalize = (str) => str
+    .toLowerCase()
+    .replace(/['']/g, '')           // Remove apostrophes
+    .replace(/[^a-z0-9\s-]/g, '')   // Remove special chars
+    .replace(/\s+/g, '-')           // Spaces to hyphens
+    .replace(/-+/g, '-')            // Multiple hyphens to single
+    .replace(/^-|-$/g, '');         // Trim hyphens
+
+  return `${normalize(title)}-${normalize(venueName)}-${startDate}`;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -85,10 +98,11 @@ async function handleAdminAPI(request, env, url) {
     // POST /admin/api/musicals - Create new musical
     if (url.pathname === '/admin/api/musicals' && request.method === 'POST') {
       const data = await request.json();
+      const runId = generateRunId(data.title, data.venue_name, data.start_date);
 
       const result = await env.DB.prepare(`
-        INSERT INTO musicals (title, venue_name, venue_address, type, start_date, end_date, description, ticket_url, price_from, schedule, lottery_url, lottery_price, rush_url, rush_price)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO musicals (title, venue_name, venue_address, type, start_date, end_date, description, ticket_url, price_from, schedule, lottery_url, lottery_price, rush_url, rush_price, run_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         data.title,
         data.venue_name,
@@ -103,7 +117,8 @@ async function handleAdminAPI(request, env, url) {
         data.lottery_url || null,
         data.lottery_price || null,
         data.rush_url || null,
-        data.rush_price || null
+        data.rush_price || null,
+        runId
       ).run();
 
       const newMusical = await env.DB.prepare('SELECT * FROM musicals WHERE id = ?')
@@ -116,6 +131,7 @@ async function handleAdminAPI(request, env, url) {
     if (url.pathname.match(/^\/admin\/api\/musicals\/\d+$/) && request.method === 'PUT') {
       const id = url.pathname.split('/')[4];
       const data = await request.json();
+      const runId = generateRunId(data.title, data.venue_name, data.start_date);
 
       await env.DB.prepare(`
         UPDATE musicals SET
@@ -123,7 +139,7 @@ async function handleAdminAPI(request, env, url) {
           start_date = ?, end_date = ?, description = ?,
           ticket_url = ?, price_from = ?, schedule = ?,
           lottery_url = ?, lottery_price = ?, rush_url = ?, rush_price = ?,
-          updated_at = CURRENT_TIMESTAMP
+          run_id = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).bind(
         data.title,
@@ -140,6 +156,7 @@ async function handleAdminAPI(request, env, url) {
         data.lottery_price || null,
         data.rush_url || null,
         data.rush_price || null,
+        runId,
         id
       ).run();
 
@@ -154,40 +171,92 @@ async function handleAdminAPI(request, env, url) {
       return new Response(JSON.stringify({ success: true }), { headers });
     }
 
-    // POST /admin/api/musicals/import - Bulk import from CSV data
+    // POST /admin/api/musicals/import - Bulk import from CSV data with upsert
     if (url.pathname === '/admin/api/musicals/import' && request.method === 'POST') {
       const { records } = await request.json();
-      let imported = 0;
+      let inserted = 0;
+      let updated = 0;
       let errors = [];
 
       for (const row of records) {
         try {
-          await env.DB.prepare(`
-            INSERT INTO musicals (title, venue_name, venue_address, type, start_date, end_date, description, ticket_url, price_from, schedule, lottery_url, lottery_price, rush_url, rush_price)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `).bind(
-            row.title,
-            row.venue_name,
-            row.venue_address || null,
-            row.type,
-            row.start_date,
-            row.end_date || null,
-            row.description || null,
-            row.ticket_url || null,
-            row.price_from ? parseFloat(row.price_from) : null,
-            row.schedule || null,
-            row.lottery_url || null,
-            row.lottery_price ? parseFloat(row.lottery_price) : null,
-            row.rush_url || null,
-            row.rush_price ? parseFloat(row.rush_price) : null
-          ).run();
-          imported++;
+          const runId = generateRunId(row.title, row.venue_name, row.start_date);
+
+          // Check if record exists
+          const existing = await env.DB.prepare('SELECT id FROM musicals WHERE run_id = ?').bind(runId).first();
+
+          if (existing) {
+            // Update existing record
+            await env.DB.prepare(`
+              UPDATE musicals SET
+                title = ?, venue_name = ?, venue_address = ?, type = ?,
+                start_date = ?, end_date = ?, description = ?,
+                ticket_url = ?, price_from = ?, schedule = ?,
+                lottery_url = ?, lottery_price = ?, rush_url = ?, rush_price = ?,
+                updated_at = CURRENT_TIMESTAMP
+              WHERE run_id = ?
+            `).bind(
+              row.title,
+              row.venue_name,
+              row.venue_address || null,
+              row.type,
+              row.start_date,
+              row.end_date || null,
+              row.description || null,
+              row.ticket_url || null,
+              row.price_from ? parseFloat(row.price_from) : null,
+              row.schedule || null,
+              row.lottery_url || null,
+              row.lottery_price ? parseFloat(row.lottery_price) : null,
+              row.rush_url || null,
+              row.rush_price ? parseFloat(row.rush_price) : null,
+              runId
+            ).run();
+            updated++;
+          } else {
+            // Insert new record
+            await env.DB.prepare(`
+              INSERT INTO musicals (title, venue_name, venue_address, type, start_date, end_date, description, ticket_url, price_from, schedule, lottery_url, lottery_price, rush_url, rush_price, run_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(
+              row.title,
+              row.venue_name,
+              row.venue_address || null,
+              row.type,
+              row.start_date,
+              row.end_date || null,
+              row.description || null,
+              row.ticket_url || null,
+              row.price_from ? parseFloat(row.price_from) : null,
+              row.schedule || null,
+              row.lottery_url || null,
+              row.lottery_price ? parseFloat(row.lottery_price) : null,
+              row.rush_url || null,
+              row.rush_price ? parseFloat(row.rush_price) : null,
+              runId
+            ).run();
+            inserted++;
+          }
         } catch (err) {
           errors.push({ row: row.title, error: err.message });
         }
       }
 
-      return new Response(JSON.stringify({ imported, errors }), { headers });
+      return new Response(JSON.stringify({ inserted, updated, errors }), { headers });
+    }
+
+    // POST /admin/api/migrate-run-ids - One-time migration to populate run_ids
+    if (url.pathname === '/admin/api/migrate-run-ids' && request.method === 'POST') {
+      const { results } = await env.DB.prepare('SELECT id, title, venue_name, start_date FROM musicals WHERE run_id IS NULL').all();
+      let migrated = 0;
+
+      for (const row of results) {
+        const runId = generateRunId(row.title, row.venue_name, row.start_date);
+        await env.DB.prepare('UPDATE musicals SET run_id = ? WHERE id = ?').bind(runId, row.id).run();
+        migrated++;
+      }
+
+      return new Response(JSON.stringify({ migrated }), { headers });
     }
 
     return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers });
@@ -573,6 +642,8 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="importBtn">Import CSV</button>
         <button type="button" class="btn btn-secondary" id="downloadTemplate">Download Template</button>
+        <button type="button" class="btn btn-secondary" id="exportBtn">Export Data</button>
+        <button type="button" class="btn btn-secondary" id="migrateBtn" style="background:#8b5cf6;">Migrate Run IDs</button>
       </div>
       <div id="importResult" style="margin-top:15px;"></div>
     </div>
@@ -847,13 +918,14 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
 
         const result = await res.json();
 
-        if (result.imported > 0) {
-          showToast('Imported ' + result.imported + ' musicals');
+        if (result.inserted > 0 || result.updated > 0) {
+          showToast('Inserted ' + result.inserted + ', Updated ' + result.updated + ' musicals');
           // Reload the page to refresh data
-          setTimeout(() => location.reload(), 1000);
+          setTimeout(() => location.reload(), 1500);
         }
 
-        let html = '<span style="color:#22c55e;">Imported: ' + result.imported + '</span>';
+        let html = '<span style="color:#22c55e;">Inserted: ' + result.inserted + '</span>';
+        html += '<br><span style="color:#f5af19;">Updated: ' + result.updated + '</span>';
         if (result.errors.length) {
           html += '<br><span style="color:#dc2626;">Errors: ' + result.errors.length + '</span>';
           html += '<ul style="margin-top:10px;font-size:0.85rem;color:#999;">';
@@ -871,8 +943,8 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
     });
 
     document.getElementById('downloadTemplate').addEventListener('click', () => {
-      const template = 'title,venue_name,venue_address,type,start_date,end_date,description,ticket_url,price_from\\n' +
-        '"Example Musical","Theatre Name","123 London St, W1","West End","2025-01-01","2025-12-31","A great show","https://example.com",29.99';
+      const template = 'title,venue_name,venue_address,type,start_date,end_date,description,ticket_url,price_from,schedule,lottery_url,lottery_price,rush_url,rush_price\\n' +
+        '"Example Musical","Theatre Name","123 London St, W1","West End","2025-01-01","2025-12-31","A great show","https://example.com",29.99,"{\\"mon\\":{\\"m\\":null,\\"e\\":\\"19:30\\"}}","","","",""';
       const blob = new Blob([template], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -880,6 +952,49 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       a.download = 'musicals_template.csv';
       a.click();
       URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('migrateBtn').addEventListener('click', async () => {
+      if (!confirm('This will generate run_ids for all records that don\\'t have one. Continue?')) return;
+
+      try {
+        const res = await fetch('/admin/api/migrate-run-ids', { method: 'POST' });
+        const result = await res.json();
+        showToast('Migrated ' + result.migrated + ' records');
+        if (result.migrated > 0) {
+          setTimeout(() => location.reload(), 1000);
+        }
+      } catch (err) {
+        showToast('Migration failed: ' + err.message, 'error');
+      }
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const headers = ['run_id', 'title', 'venue_name', 'venue_address', 'type', 'start_date', 'end_date', 'description', 'ticket_url', 'price_from', 'schedule', 'lottery_url', 'lottery_price', 'rush_url', 'rush_price'];
+      const csvRows = [headers.join(',')];
+
+      musicals.forEach(m => {
+        const row = headers.map(h => {
+          const val = m[h];
+          if (val === null || val === undefined) return '';
+          const str = String(val);
+          if (str.includes(',') || str.includes('"') || str.includes('\\n')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+          }
+          return str;
+        });
+        csvRows.push(row.join(','));
+      });
+
+      const csv = csvRows.join('\\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'musicals_export_' + new Date().toISOString().split('T')[0] + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported ' + musicals.length + ' musicals');
     });
 
     render();
