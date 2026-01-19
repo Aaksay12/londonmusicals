@@ -1173,6 +1173,9 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     .date-filter-btn.secondary {
       background: #444;
     }
+    .date-filter-btn.secondary.active {
+      background: #e94560;
+    }
     .date-separator {
       color: #555;
       font-size: 1.2rem;
@@ -1364,6 +1367,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     <button class="filter-btn" data-filter="west-end">West End</button>
     <button class="filter-btn" data-filter="off-west-end">Off West End</button>
     <button class="filter-btn" data-filter="drama-school">Drama Schools</button>
+    <button class="filter-btn" data-filter="rush-lottery">Rush & Lottery</button>
   </div>
 
   <div class="date-filter">
@@ -1371,6 +1375,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       <button class="date-filter-btn secondary" id="btnToday">Today</button>
       <button class="date-filter-btn secondary" id="btnThisWeek">This Week</button>
       <button class="date-filter-btn secondary" id="btnThisMonth">This Month</button>
+      <button class="date-filter-btn secondary active" id="btnThisQuarter">This Quarter</button>
       <span class="date-separator">|</span>
       <label>
         <span>From</span>
@@ -1560,7 +1565,12 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       const fromDate = document.getElementById('dateFrom').value || defaultDate;
       const toDate = document.getElementById('dateTo').value || defaultEndDate;
 
-      const filtered = allMusicals.filter(m => isShowActive(m, fromDate, toDate));
+      let filtered = allMusicals.filter(m => isShowActive(m, fromDate, toDate));
+
+      // Apply rush-lottery filter if selected
+      if (typeFilter === 'rush-lottery') {
+        filtered = filtered.filter(m => m.rush_url || m.lottery_url);
+      }
 
       const westEnd = filtered.filter(m => m.type === 'West End');
       const offWestEnd = filtered.filter(m => m.type === 'Off West End');
@@ -1582,7 +1592,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
       // Apply type filter
       document.querySelectorAll('.section').forEach(section => {
-        if (typeFilter === 'all') {
+        if (typeFilter === 'all' || typeFilter === 'rush-lottery') {
           section.classList.remove('hidden');
         } else {
           section.classList.toggle('hidden', section.dataset.section !== typeFilter);
@@ -1600,11 +1610,21 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       });
     });
 
+    // Helper to set active date button
+    function setActiveDateBtn(btnId) {
+      document.querySelectorAll('.date-filter-btn.secondary').forEach(btn => btn.classList.remove('active'));
+      if (btnId) document.getElementById(btnId).classList.add('active');
+    }
+
     // Date filter
-    document.getElementById('applyDateFilter').addEventListener('click', render);
+    document.getElementById('applyDateFilter').addEventListener('click', () => {
+      setActiveDateBtn(null);
+      render();
+    });
     document.getElementById('clearDateFilter').addEventListener('click', () => {
       document.getElementById('dateFrom').value = defaultDate;
       document.getElementById('dateTo').value = defaultEndDate;
+      setActiveDateBtn('btnThisQuarter');
       render();
     });
 
@@ -1612,6 +1632,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     document.getElementById('btnToday').addEventListener('click', () => {
       document.getElementById('dateFrom').value = defaultDate;
       document.getElementById('dateTo').value = defaultDate;
+      setActiveDateBtn('btnToday');
       render();
     });
 
@@ -1621,6 +1642,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       endOfWeek.setDate(today.getDate() + (7 - today.getDay()));
       document.getElementById('dateFrom').value = defaultDate;
       document.getElementById('dateTo').value = endOfWeek.toISOString().split('T')[0];
+      setActiveDateBtn('btnThisWeek');
       render();
     });
 
@@ -1629,6 +1651,14 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       document.getElementById('dateFrom').value = defaultDate;
       document.getElementById('dateTo').value = endOfMonth.toISOString().split('T')[0];
+      setActiveDateBtn('btnThisMonth');
+      render();
+    });
+
+    document.getElementById('btnThisQuarter').addEventListener('click', () => {
+      document.getElementById('dateFrom').value = defaultDate;
+      document.getElementById('dateTo').value = defaultEndDate;
+      setActiveDateBtn('btnThisQuarter');
       render();
     });
 
