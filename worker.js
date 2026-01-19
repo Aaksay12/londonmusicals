@@ -1551,12 +1551,14 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
           ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
           : 'Open run';
       } else {
-        // Show not started yet - display both dates
+        // Show not started yet - display both dates (or just start if open run)
         const startFormatted = new Date(m.start_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
-        const endFormatted = m.end_date
-          ? new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
-          : 'Open run';
-        dateText = 'From ' + startFormatted + ' until ' + endFormatted;
+        if (m.end_date) {
+          const endFormatted = new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
+          dateText = 'From ' + startFormatted + ' until ' + endFormatted;
+        } else {
+          dateText = 'From ' + startFormatted;
+        }
       }
 
       const price = m.price_from ? 'From £' + m.price_from.toFixed(2) : '';
