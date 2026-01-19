@@ -142,6 +142,37 @@ async function handleAdminAPI(request, env, url) {
       return new Response(JSON.stringify({ success: true }), { headers });
     }
 
+    // POST /admin/api/musicals/import - Bulk import from CSV data
+    if (url.pathname === '/admin/api/musicals/import' && request.method === 'POST') {
+      const { records } = await request.json();
+      let imported = 0;
+      let errors = [];
+
+      for (const row of records) {
+        try {
+          await env.DB.prepare(`
+            INSERT INTO musicals (title, venue_name, venue_address, type, start_date, end_date, description, ticket_url, price_from)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            row.title,
+            row.venue_name,
+            row.venue_address || null,
+            row.type,
+            row.start_date,
+            row.end_date || null,
+            row.description || null,
+            row.ticket_url || null,
+            row.price_from ? parseFloat(row.price_from) : null
+          ).run();
+          imported++;
+        } catch (err) {
+          errors.push({ row: row.title, error: err.message });
+        }
+      }
+
+      return new Response(JSON.stringify({ imported, errors }), { headers });
+    }
+
     return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers });
 
   } catch (error) {
@@ -453,6 +484,24 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       </form>
     </div>
 
+    <div class="form-section">
+      <h2>Import from CSV</h2>
+      <p style="color:#888;margin-bottom:15px;font-size:0.9rem;">
+        CSV columns: title, venue_name, venue_address, type, start_date, end_date, description, ticket_url, price_from
+      </p>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="csvFile">Select CSV File</label>
+          <input type="file" id="csvFile" accept=".csv" style="padding:10px;background:#0f3460;border:1px solid #333;border-radius:6px;">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" id="importBtn">Import CSV</button>
+        <button type="button" class="btn btn-secondary" id="downloadTemplate">Download Template</button>
+      </div>
+      <div id="importResult" style="margin-top:15px;"></div>
+    </div>
+
     <div class="table-section">
       <div class="table-header">
         <h2>All Musicals (<span id="totalCount">0</span>)</h2>
@@ -612,6 +661,105 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
 
     document.getElementById('searchBox').addEventListener('input', (e) => {
       render(e.target.value);
+    });
+
+    // CSV Import functionality
+    function parseCSV(text) {
+      const lines = text.split('\\n').filter(line => line.trim());
+      if (lines.length < 2) return [];
+
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, ''));
+      const records = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (const char of lines[i]) {
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        values.push(current.trim());
+
+        const record = {};
+        headers.forEach((h, idx) => {
+          record[h] = values[idx] || '';
+        });
+        records.push(record);
+      }
+
+      return records;
+    }
+
+    document.getElementById('importBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('csvFile');
+      const resultDiv = document.getElementById('importResult');
+
+      if (!fileInput.files.length) {
+        showToast('Please select a CSV file', 'error');
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const text = await file.text();
+      const records = parseCSV(text);
+
+      if (!records.length) {
+        showToast('No valid records found in CSV', 'error');
+        return;
+      }
+
+      resultDiv.innerHTML = '<span style="color:#f5af19;">Importing ' + records.length + ' records...</span>';
+
+      try {
+        const res = await fetch('/admin/api/musicals/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ records }),
+        });
+
+        const result = await res.json();
+
+        if (result.imported > 0) {
+          showToast('Imported ' + result.imported + ' musicals');
+          // Reload the page to refresh data
+          setTimeout(() => location.reload(), 1000);
+        }
+
+        let html = '<span style="color:#22c55e;">Imported: ' + result.imported + '</span>';
+        if (result.errors.length) {
+          html += '<br><span style="color:#dc2626;">Errors: ' + result.errors.length + '</span>';
+          html += '<ul style="margin-top:10px;font-size:0.85rem;color:#999;">';
+          result.errors.forEach(e => {
+            html += '<li>' + escapeHtml(e.row) + ': ' + escapeHtml(e.error) + '</li>';
+          });
+          html += '</ul>';
+        }
+        resultDiv.innerHTML = html;
+
+      } catch (err) {
+        showToast('Import failed: ' + err.message, 'error');
+        resultDiv.innerHTML = '<span style="color:#dc2626;">Error: ' + escapeHtml(err.message) + '</span>';
+      }
+    });
+
+    document.getElementById('downloadTemplate').addEventListener('click', () => {
+      const template = 'title,venue_name,venue_address,type,start_date,end_date,description,ticket_url,price_from\\n' +
+        '"Example Musical","Theatre Name","123 London St, W1","West End","2025-01-01","2025-12-31","A great show","https://example.com",29.99';
+      const blob = new Blob([template], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'musicals_template.csv';
+      a.click();
+      URL.revokeObjectURL(url);
     });
 
     render();
