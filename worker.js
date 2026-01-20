@@ -511,6 +511,11 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #333; }
     th { background: #0f3460; font-weight: 600; color: #aaa; font-size: 0.85rem; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: #f5af19; }
+    th .sort-icon { margin-left: 5px; font-size: 0.7rem; }
+    th.sort-asc .sort-icon::after { content: '▲'; }
+    th.sort-desc .sort-icon::after { content: '▼'; }
     tr:hover { background: rgba(233, 69, 96, 0.1); }
     .badge {
       display: inline-block;
@@ -671,11 +676,11 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       <table>
         <thead>
           <tr>
-            <th>Title</th>
-            <th>Type</th>
-            <th>Venue</th>
-            <th>Dates</th>
-            <th>Status</th>
+            <th class="sortable" data-sort="title">Title <span class="sort-icon"></span></th>
+            <th class="sortable" data-sort="type">Type <span class="sort-icon"></span></th>
+            <th class="sortable" data-sort="venue_name">Venue <span class="sort-icon"></span></th>
+            <th class="sortable" data-sort="start_date">Dates <span class="sort-icon"></span></th>
+            <th class="sortable" data-sort="status">Status <span class="sort-icon"></span></th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -689,16 +694,54 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
   <script>
     let musicals = {{MUSICALS_JSON}};
     const today = new Date().toISOString().split('T')[0];
+    let sortColumn = 'title';
+    let sortDirection = 'asc';
+
+    function getStatus(m) {
+      return m.start_date <= today && (!m.end_date || m.end_date >= today) ? 'Active' : 'Ended';
+    }
+
+    function sortMusicals(list) {
+      return [...list].sort((a, b) => {
+        let aVal, bVal;
+        if (sortColumn === 'status') {
+          aVal = getStatus(a);
+          bVal = getStatus(b);
+        } else {
+          aVal = a[sortColumn] || '';
+          bVal = b[sortColumn] || '';
+        }
+        if (typeof aVal === 'string') {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+        }
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function updateSortIcons() {
+      document.querySelectorAll('th.sortable').forEach(th => {
+        th.classList.remove('sort-asc', 'sort-desc');
+        if (th.dataset.sort === sortColumn) {
+          th.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+      });
+    }
 
     function render(filter = '') {
-      const filtered = musicals.filter(m =>
+      let filtered = musicals.filter(m =>
         m.title.toLowerCase().includes(filter.toLowerCase()) ||
         m.venue_name.toLowerCase().includes(filter.toLowerCase())
       );
 
+      filtered = sortMusicals(filtered);
+      updateSortIcons();
+
       document.getElementById('totalCount').textContent = musicals.length;
       document.getElementById('tableBody').innerHTML = filtered.map(m => {
-        const isActive = m.start_date <= today && (!m.end_date || m.end_date >= today);
+        const isActive = getStatus(m) === 'Active';
         const typeClass = m.type.toLowerCase().replace(/ /g, '-');
         const dates = m.end_date ? \`\${m.start_date} → \${m.end_date}\` : \`\${m.start_date} → Open Run\`;
 
@@ -867,6 +910,20 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
 
     document.getElementById('searchBox').addEventListener('input', (e) => {
       render(e.target.value);
+    });
+
+    // Sortable column headers
+    document.querySelectorAll('th.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const column = th.dataset.sort;
+        if (sortColumn === column) {
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortColumn = column;
+          sortDirection = 'asc';
+        }
+        render(document.getElementById('searchBox').value);
+      });
     });
 
     // CSV Import functionality
