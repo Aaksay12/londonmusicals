@@ -1941,6 +1941,40 @@ function getShowcardsDemo() {
       '</div>';
   }
 
+  // Card D variant - badge-style venue icons and tickets button next to title
+  function renderVenueIconsD(venueName, venueAddress) {
+    if (!venueAddress) return '';
+    const query = encodeURIComponent(venueName + ' ' + venueAddress);
+    return '<span class="venue-icons-d">' +
+      '<a href="https://www.google.com/maps/search/?api=1&query=' + query + '" target="_blank" rel="noopener" class="venue-badge" title="View on map">📍 Map</a>' +
+      '<a href="https://www.google.com/maps/dir/?api=1&destination=' + query + '" target="_blank" rel="noopener" class="venue-badge" title="Get directions">🧭 Directions</a>' +
+      '</span>';
+  }
+
+  function renderCardD(m) {
+    const price = m.price_from ? 'From £' + m.price_from.toFixed(2) : '';
+    const endDate = m.end_date
+      ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'Open run';
+
+    const ticketsBadge = m.ticket_url
+      ? '<a href="' + escapeHtml(m.ticket_url) + '" target="_blank" rel="noopener" class="title-badge tickets">🎟️ Tickets</a>'
+      : '';
+
+    return '<div class="card variant-d">' +
+      renderTicketBadges(m) +
+      '<div class="card-badge">' + escapeHtml(m.type) + '</div>' +
+      '<div class="title-row"><h3 class="card-title">' + escapeHtml(m.title) + '</h3>' + ticketsBadge + '</div>' +
+      '<p class="card-venue-d"><span>' + escapeHtml(m.venue_name) + '</span>' + renderVenueIconsD(m.venue_name, m.venue_address) + '</p>' +
+      (m.description ? '<p class="card-desc">' + escapeHtml(m.description) + '</p>' : '') +
+      renderScheduleDots(m.schedule) +
+      '<div class="card-meta">' +
+      '<span class="card-date">' + endDate + '</span>' +
+      (price ? '<span class="card-price">' + price + '</span>' : '') +
+      '</div>' +
+      '</div>';
+  }
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1972,9 +2006,9 @@ function getShowcardsDemo() {
     }
     .cards-container {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 25px;
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
     }
     .card-wrapper {
@@ -2109,7 +2143,70 @@ function getShowcardsDemo() {
     }
     .footer a { color: #e94560; text-decoration: none; }
     .footer a:hover { text-decoration: underline; }
-    @media (max-width: 900px) {
+
+    /* Card D specific styles */
+    .variant-d .title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .variant-d .card-title {
+      margin-bottom: 0;
+    }
+    .title-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: #fff;
+      transition: background 0.2s;
+      border: 1px solid #e94560;
+    }
+    .title-badge:hover {
+      background: rgba(0, 0, 0, 0.8);
+    }
+    .card-venue-d {
+      color: #f5af19;
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .venue-icons-d {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .venue-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: #fff;
+      transition: background 0.2s;
+      border: 1px solid #f5af19;
+    }
+    .venue-badge:hover {
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    @media (max-width: 1200px) {
+      .cards-container { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 700px) {
       .cards-container { grid-template-columns: 1fr; max-width: 400px; }
     }
   </style>
@@ -2130,6 +2227,10 @@ function getShowcardsDemo() {
     <div class="card-wrapper">
       <div class="card-label">Card C</div>
       ${renderCard(cabaret, 'variant-c')}
+    </div>
+    <div class="card-wrapper">
+      <div class="card-label">Card D (New Style)</div>
+      ${renderCardD(cabaret)}
     </div>
   </div>
 
