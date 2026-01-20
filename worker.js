@@ -1952,7 +1952,6 @@ function getShowcardsDemo() {
   }
 
   function renderCardD(m) {
-    const price = m.price_from ? 'From £' + m.price_from.toFixed(2) : '';
     const endDate = m.end_date
       ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
       : 'Open run';
@@ -1966,11 +1965,9 @@ function getShowcardsDemo() {
       '<div class="card-badge">' + escapeHtml(m.type) + '</div>' +
       '<div class="title-row"><h3 class="card-title">' + escapeHtml(m.title) + '</h3>' + ticketsBadge + '</div>' +
       '<p class="card-venue-d"><span>' + escapeHtml(m.venue_name) + '</span>' + renderVenueIconsD(m.venue_name, m.venue_address) + '</p>' +
-      (m.description ? '<p class="card-desc">' + escapeHtml(m.description) + '</p>' : '') +
       renderScheduleDots(m.schedule) +
       '<div class="card-meta">' +
       '<span class="card-date">' + endDate + '</span>' +
-      (price ? '<span class="card-price">' + price + '</span>' : '') +
       '</div>' +
       '</div>';
   }
