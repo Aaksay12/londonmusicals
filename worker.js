@@ -679,7 +679,8 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
             <th class="sortable" data-sort="title">Title <span class="sort-icon"></span></th>
             <th class="sortable" data-sort="type">Type <span class="sort-icon"></span></th>
             <th class="sortable" data-sort="venue_name">Venue <span class="sort-icon"></span></th>
-            <th class="sortable" data-sort="start_date">Dates <span class="sort-icon"></span></th>
+            <th class="sortable" data-sort="start_date">Start Date <span class="sort-icon"></span></th>
+            <th class="sortable" data-sort="end_date">End Date <span class="sort-icon"></span></th>
             <th class="sortable" data-sort="status">Status <span class="sort-icon"></span></th>
             <th>Actions</th>
           </tr>
@@ -743,14 +744,14 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       document.getElementById('tableBody').innerHTML = filtered.map(m => {
         const isActive = getStatus(m) === 'Active';
         const typeClass = m.type.toLowerCase().replace(/ /g, '-');
-        const dates = m.end_date ? \`\${m.start_date} → \${m.end_date}\` : \`\${m.start_date} → Open Run\`;
 
         return \`
           <tr>
             <td><strong>\${escapeHtml(m.title)}</strong></td>
             <td><span class="badge badge-\${typeClass}">\${m.type}</span></td>
             <td>\${escapeHtml(m.venue_name)}</td>
-            <td>\${dates}</td>
+            <td>\${m.start_date}</td>
+            <td>\${m.end_date || 'Open Run'}</td>
             <td><span class="badge \${isActive ? 'badge-active' : 'badge-ended'}">\${isActive ? 'Active' : 'Ended'}</span></td>
             <td class="actions">
               <button class="btn btn-secondary btn-sm" onclick="editMusical(\${m.id})">Edit</button>
