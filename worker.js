@@ -1491,6 +1491,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     <button class="filter-btn" data-filter="off-west-end">Off West End</button>
     <button class="filter-btn" data-filter="drama-school">Drama Schools</button>
     <button class="filter-btn" data-filter="rush-lottery">Rush & Lottery</button>
+    <button class="filter-btn" data-filter="closing-soon">Closing Soon</button>
   </div>
 
   <div class="date-filter">
@@ -1713,6 +1714,14 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         filtered = filtered.filter(m => m.rush_url || m.lottery_url);
       }
 
+      // Apply closing-soon filter if selected (shows ending within 4 weeks)
+      if (typeFilter === 'closing-soon') {
+        const today = new Date();
+        const fourWeeksLater = new Date(today.getTime() + 28 * 24 * 60 * 60 * 1000);
+        const fourWeeksDate = fourWeeksLater.toISOString().split('T')[0];
+        filtered = filtered.filter(m => m.end_date && m.end_date <= fourWeeksDate);
+      }
+
       const westEnd = filtered.filter(m => m.type === 'West End');
       const offWestEnd = filtered.filter(m => m.type === 'Off West End');
       const dramaSchool = filtered.filter(m => m.type === 'Drama School');
@@ -1733,7 +1742,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
       // Apply type filter
       document.querySelectorAll('.section').forEach(section => {
-        if (typeFilter === 'all' || typeFilter === 'rush-lottery') {
+        if (typeFilter === 'all' || typeFilter === 'rush-lottery' || typeFilter === 'closing-soon') {
           section.classList.remove('hidden');
         } else {
           section.classList.toggle('hidden', section.dataset.section !== typeFilter);
