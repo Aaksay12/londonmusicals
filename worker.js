@@ -1843,7 +1843,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 function getShowcardsDemo() {
   const cabaret = {
     id: 1,
-    title: 'Cabaret',
+    title: 'The Unlikely Pilgrimage of Harold Fry',
     venue_name: 'Playhouse Theatre',
     venue_address: 'Northumberland Avenue, London WC2N 5DE',
     type: 'West End',
@@ -1971,12 +1971,12 @@ function getShowcardsDemo() {
       : 'Open run';
 
     return '<div class="card variant-d">' +
-      '<div class="card-badge">' + escapeHtml(m.type) + '</div>' +
       '<div class="title-row"><h3 class="card-title">' + escapeHtml(m.title) + '</h3>' + renderTitleBadgesD(m) + '</div>' +
       '<p class="card-venue-d"><span>' + escapeHtml(m.venue_name) + '</span>' + renderVenueIconsD(m.venue_name, m.venue_address) + '</p>' +
       renderScheduleDots(m.schedule) +
-      '<div class="card-meta">' +
+      '<div class="card-meta-d">' +
       '<span class="card-date">' + endDate + '</span>' +
+      '<span class="card-type-badge">' + escapeHtml(m.type) + '</span>' +
       '</div>' +
       '</div>';
   }
@@ -2213,6 +2213,23 @@ function getShowcardsDemo() {
     }
     .venue-badge:hover {
       background: rgba(0, 0, 0, 0.8);
+    }
+    .card-meta-d {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: #999;
+    }
+    .card-type-badge {
+      background: rgba(233, 69, 96, 0.3);
+      color: #e94560;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
     }
 
     @media (max-width: 1200px) {
