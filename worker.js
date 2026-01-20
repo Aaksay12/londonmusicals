@@ -2063,9 +2063,8 @@ function getShowcardsDemo() {
     .ticket-badge.lottery { border: 1px solid #a855f7; }
     .ticket-badge.rush { border: 1px solid #f59e0b; }
     .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 15px 40px rgba(233, 69, 96, 0.2);
-      border-color: #e94560;
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
     .card-badge {
       display: inline-block;
@@ -2172,17 +2171,30 @@ function getShowcardsDemo() {
       font-weight: 600;
       text-decoration: none;
       color: #fff;
-      transition: background 0.2s;
+      transition: all 0.2s ease;
       border: 1px solid #e94560;
     }
     .title-badge:hover {
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.9);
+      transform: scale(1.05);
+    }
+    .title-badge.tickets:hover {
+      border-color: #ff6b8a;
+      box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
     }
     .title-badge.lottery {
       border-color: #a855f7;
     }
+    .title-badge.lottery:hover {
+      border-color: #c084fc;
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
+    }
     .title-badge.rush {
       border-color: #f59e0b;
+    }
+    .title-badge.rush:hover {
+      border-color: #fbbf24;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
     }
     .card-venue-d {
       color: #f5af19;
@@ -2208,11 +2220,14 @@ function getShowcardsDemo() {
       font-weight: 600;
       text-decoration: none;
       color: #fff;
-      transition: background 0.2s;
+      transition: all 0.2s ease;
       border: 1px solid #f5af19;
     }
     .venue-badge:hover {
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.9);
+      transform: scale(1.05);
+      border-color: #fbbf24;
+      box-shadow: 0 0 8px rgba(245, 175, 25, 0.5);
     }
     .card-meta-d {
       display: flex;
