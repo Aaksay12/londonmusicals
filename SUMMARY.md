@@ -63,16 +63,23 @@ Stores actual show times (or null if no performance):
 ## Public Page Features
 
 ### Filters
-- **Type filters:** All Shows, West End, Off West End, Drama Schools, Rush & Lottery
-- **Date filters:** Today, This Week, This Month, This Quarter (default)
+- **Type filters:** All Shows, West End, Off West End, Drama Schools, Rush & Lottery, Closing Soon
+- **Date filters:** Today, This Week, This Month, This Quarter (default), This Year
 - **Custom date range:** From/To date pickers with Apply/Clear
+
+### Special Filters
+- **Rush & Lottery:** Shows only musicals with rush or lottery ticket options
+- **Closing Soon:** Shows only musicals ending within the next 4 weeks
 
 ### Show Cards Display
 - Show title and type badge
 - Venue name with location icons (📍 map, 🧭 directions)
 - Description
 - Weekly schedule grid with actual times
-- End date (or "Open run")
+- Date display:
+  - Currently running: "Until [end_date]" or "Open run"
+  - Upcoming with end date: "From [start_date] until [end_date]"
+  - Upcoming open run: "From [start_date]"
 - Price from
 - Rush (⚡) and Lottery (🎲) badges with prices (top-right corner, clickable)
 - Get Tickets button
@@ -94,11 +101,22 @@ When a single day is selected, shows are filtered by their weekly schedule (only
 
 ### Features
 1. **Add/Edit Musical** - Form with all fields including schedule grid
-2. **CSV Import** - Bulk import with upsert logic
+2. **CSV Import** - Bulk import with upsert logic (handles escaped JSON in schedule column)
 3. **Export Data** - Download all data as CSV
 4. **Download Template** - Get CSV template
 5. **Migrate Run IDs** - Generate run_ids for legacy records
 6. **Delete All** - Clear database (requires password re-confirmation)
+
+### Musicals Table
+- **Sortable columns:** Title, Type, Venue, Start Date, End Date, Status (click to sort, click again to reverse)
+- **Separate date columns:** Start Date and End Date displayed individually
+- **URL columns:** 🎟️ (Tickets), 🎲 (Lottery), ⚡ (Rush) - compact "URL" links
+- **Search:** Filter by title or venue name
+
+### Date Input
+- Accepts both **YYYY-MM-DD** and **DD/MM/YYYY** formats
+- Auto-normalizes to YYYY-MM-DD for storage
+- Shows format hints and validation errors
 
 ### Upsert Logic
 - `run_id` = normalized slug from `title + venue_name + start_date`
