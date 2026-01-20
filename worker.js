@@ -1493,6 +1493,7 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       <button class="date-filter-btn secondary" id="btnThisWeek">This Week</button>
       <button class="date-filter-btn secondary" id="btnThisMonth">This Month</button>
       <button class="date-filter-btn secondary active" id="btnThisQuarter">This Quarter</button>
+      <button class="date-filter-btn secondary" id="btnThisYear">This Year</button>
       <span class="date-separator">|</span>
       <label>
         <span>From</span>
@@ -1793,6 +1794,15 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       document.getElementById('dateFrom').value = defaultDate;
       document.getElementById('dateTo').value = defaultEndDate;
       setActiveDateBtn('btnThisQuarter');
+      render();
+    });
+
+    document.getElementById('btnThisYear').addEventListener('click', () => {
+      const today = new Date(defaultDate);
+      const endOfYear = new Date(today.getFullYear(), 11, 31);
+      document.getElementById('dateFrom').value = defaultDate;
+      document.getElementById('dateTo').value = endOfYear.toISOString().split('T')[0];
+      setActiveDateBtn('btnThisYear');
       render();
     });
 
