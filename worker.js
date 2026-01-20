@@ -65,6 +65,13 @@ export default {
       return handleAPI(request, env, url);
     }
 
+    // Demo showcards page
+    if (url.pathname === '/showcards') {
+      return new Response(getShowcardsDemo(), {
+        headers: { 'Content-Type': 'text/html' },
+      });
+    }
+
     // Serve the public HTML interface
     return new Response(await generateHTML(env), {
       headers: { 'Content-Type': 'text/html' },
@@ -1831,3 +1838,304 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
   </script>
 </body>
 </html>`;
+
+// Demo showcards page for experimenting with card designs
+function getShowcardsDemo() {
+  const cabaret = {
+    id: 1,
+    title: 'Cabaret',
+    venue_name: 'Playhouse Theatre',
+    venue_address: 'Northumberland Avenue, London WC2N 5DE',
+    type: 'West End',
+    start_date: '2024-11-01',
+    end_date: '2025-04-30',
+    description: 'Welcome to the Kit Kat Club. Experience the legendary musical in an intimate, immersive setting.',
+    ticket_url: 'https://example.com/cabaret',
+    price_from: 35.00,
+    schedule: {
+      mon: { m: null, e: '19:30' },
+      tue: { m: null, e: '19:30' },
+      wed: { m: '14:00', e: '19:30' },
+      thu: { m: null, e: '19:30' },
+      fri: { m: null, e: '19:30' },
+      sat: { m: '14:00', e: '19:30' },
+      sun: { m: null, e: null }
+    },
+    lottery_url: 'https://example.com/lottery',
+    lottery_price: 25.00,
+    rush_url: 'https://example.com/rush',
+    rush_price: 29.50
+  };
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function formatTime12(time24) {
+    if (!time24) return null;
+    const [h, m] = time24.split(':');
+    const hour = parseInt(h);
+    const suffix = hour >= 12 ? 'pm' : 'am';
+    const hour12 = hour % 12 || 12;
+    return hour12 + ':' + m + suffix;
+  }
+
+  function renderScheduleDots(schedule) {
+    const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    if (!schedule) return '';
+    let html = '<div class="schedule-grid-public">';
+    days.forEach((d, i) => {
+      const day = schedule[d] || { m: null, e: null };
+      const mat = formatTime12(day.m);
+      const eve = formatTime12(day.e);
+      html += '<div class="day-col">';
+      html += '<span class="day-label">' + labels[i] + '</span>';
+      html += '<span class="show-time ' + (mat ? '' : 'empty') + '">' + (mat || '-') + '</span>';
+      html += '<span class="show-time ' + (eve ? '' : 'empty') + '">' + (eve || '-') + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderTicketBadges(m) {
+    let badges = '';
+    if (m.lottery_url) {
+      badges += '<a href="' + escapeHtml(m.lottery_url) + '" target="_blank" class="ticket-badge lottery">🎲 £' + (m.lottery_price || 0).toFixed(0) + '</a>';
+    }
+    if (m.rush_url) {
+      badges += '<a href="' + escapeHtml(m.rush_url) + '" target="_blank" class="ticket-badge rush">⚡ £' + (m.rush_price || 0).toFixed(0) + '</a>';
+    }
+    return badges ? '<div class="ticket-badges">' + badges + '</div>' : '';
+  }
+
+  function renderVenueIcons(venueName, venueAddress) {
+    if (!venueAddress) return '';
+    const query = encodeURIComponent(venueName + ' ' + venueAddress);
+    return '<span class="venue-icons">' +
+      '<a href="https://www.google.com/maps/search/?api=1&query=' + query + '" target="_blank" rel="noopener" class="venue-icon" title="View on map">📍</a>' +
+      '<a href="https://www.google.com/maps/dir/?api=1&destination=' + query + '" target="_blank" rel="noopener" class="venue-icon" title="Get directions">🧭</a>' +
+      '</span>';
+  }
+
+  function renderCard(m, variant = '') {
+    const price = m.price_from ? 'From £' + m.price_from.toFixed(2) : '';
+    const endDate = m.end_date
+      ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'Open run';
+
+    return '<div class="card ' + variant + '">' +
+      renderTicketBadges(m) +
+      '<div class="card-badge">' + escapeHtml(m.type) + '</div>' +
+      '<h3 class="card-title">' + escapeHtml(m.title) + '</h3>' +
+      '<p class="card-venue"><span>' + escapeHtml(m.venue_name) + '</span>' + renderVenueIcons(m.venue_name, m.venue_address) + '</p>' +
+      (m.description ? '<p class="card-desc">' + escapeHtml(m.description) + '</p>' : '') +
+      renderScheduleDots(m.schedule) +
+      '<div class="card-meta">' +
+      '<span class="card-date">' + endDate + '</span>' +
+      (price ? '<span class="card-price">' + price + '</span>' : '') +
+      '</div>' +
+      (m.ticket_url ? '<a href="' + escapeHtml(m.ticket_url) + '" target="_blank" rel="noopener" class="card-btn">Get Tickets</a>' : '') +
+      '</div>';
+  }
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Show Cards Demo - London Musicals</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 40px 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 2rem;
+      background: linear-gradient(90deg, #e94560, #f5af19);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 40px;
+    }
+    .cards-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 25px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .card-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card-label {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #f5af19;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 24px;
+      transition: transform 0.3s, box-shadow 0.3s;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+    }
+    .ticket-badges {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .ticket-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: #fff;
+      transition: background 0.2s;
+    }
+    .ticket-badge:hover { background: rgba(0, 0, 0, 0.8); }
+    .ticket-badge.lottery { border: 1px solid #a855f7; }
+    .ticket-badge.rush { border: 1px solid #f59e0b; }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 40px rgba(233, 69, 96, 0.2);
+      border-color: #e94560;
+    }
+    .card-badge {
+      display: inline-block;
+      background: #e94560;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .card-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+    .card-venue { color: #f5af19; font-size: 0.95rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .venue-icons { display: inline-flex; gap: 6px; }
+    .venue-icon {
+      font-size: 0.85rem;
+      text-decoration: none;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .venue-icon:hover { opacity: 1; }
+    .card-desc { color: #aaa; font-size: 0.9rem; margin-bottom: 15px; line-height: 1.5; }
+    .card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      font-size: 0.85rem;
+      color: #999;
+    }
+    .card-price { color: #4ade80; font-weight: 600; }
+    .card-btn {
+      display: block;
+      text-align: center;
+      padding: 12px 20px;
+      background: linear-gradient(90deg, #e94560, #f5af19);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 25px;
+      font-weight: 600;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .card-btn:hover { opacity: 0.9; transform: scale(1.02); }
+    .schedule-grid-public {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin: 12px 0;
+      padding: 10px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+    }
+    .day-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      min-width: 32px;
+    }
+    .day-label {
+      font-size: 10px;
+      color: #888;
+      font-weight: 600;
+    }
+    .show-time {
+      font-size: 9px;
+      color: #4ade80;
+      background: rgba(74, 222, 128, 0.1);
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .show-time.empty {
+      color: #444;
+      background: transparent;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 50px;
+      color: #666;
+      font-size: 0.85rem;
+    }
+    .footer a { color: #e94560; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    @media (max-width: 900px) {
+      .cards-container { grid-template-columns: 1fr; max-width: 400px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Show Cards Demo</h1>
+  <p class="subtitle">Experiment with different card designs using Cabaret data</p>
+
+  <div class="cards-container">
+    <div class="card-wrapper">
+      <div class="card-label">Card A (Current)</div>
+      ${renderCard(cabaret, 'variant-a')}
+    </div>
+    <div class="card-wrapper">
+      <div class="card-label">Card B</div>
+      ${renderCard(cabaret, 'variant-b')}
+    </div>
+    <div class="card-wrapper">
+      <div class="card-label">Card C</div>
+      ${renderCard(cabaret, 'variant-c')}
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="/">← Back to Main Page</a>
+  </div>
+</body>
+</html>`;
+}
