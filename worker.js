@@ -1668,9 +1668,14 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
     function renderCard(m) {
       const today = new Date().toISOString().split('T')[0];
       const hasStarted = m.start_date <= today;
+      const isSingleDay = m.end_date && m.start_date === m.end_date;
 
       let dateText;
-      if (hasStarted) {
+      if (isSingleDay) {
+        // Single day show/concert
+        const dateFormatted = new Date(m.start_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
+        dateText = 'Only on ' + dateFormatted;
+      } else if (hasStarted) {
         // Show started - display end date only
         dateText = m.end_date
           ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
