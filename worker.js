@@ -585,12 +585,12 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
             <input type="text" id="venue_address">
           </div>
           <div class="form-group">
-            <label for="start_date">Start Date *</label>
-            <input type="date" id="start_date" required>
+            <label for="start_date">Start Date * <small style="color:#888">(YYYY-MM-DD)</small></label>
+            <input type="text" id="start_date" placeholder="2026-01-15" required>
           </div>
           <div class="form-group">
             <label for="end_date">End Date <small style="color:#888">(leave empty for Open Run)</small></label>
-            <input type="date" id="end_date">
+            <input type="text" id="end_date" placeholder="2026-12-31">
           </div>
           <div class="form-group">
             <label for="price_from">Price From (£)</label>
@@ -858,8 +858,59 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
       }
     }
 
+    function normalizeDate(input) {
+      if (!input) return null;
+      const val = input.trim();
+      // Already in YYYY-MM-DD format
+      if (/^\\d{4}-\\d{2}-\\d{2}$/.test(val)) return val;
+      // DD/MM/YYYY or DD-MM-YYYY format
+      const match = val.match(/^(\\d{1,2})[\\/\\-](\\d{1,2})[\\/\\-](\\d{4})$/);
+      if (match) {
+        const day = match[1].padStart(2, '0');
+        const month = match[2].padStart(2, '0');
+        const year = match[3];
+        return year + '-' + month + '-' + day;
+      }
+      return val;
+    }
+
+    function isValidDate(str) {
+      if (!str) return true; // Empty is OK for optional fields
+      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(str)) return false;
+      const date = new Date(str);
+      return !isNaN(date.getTime());
+    }
+
     document.getElementById('musicalForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      const startDateInput = document.getElementById('start_date');
+      const endDateInput = document.getElementById('end_date');
+
+      const startDate = normalizeDate(startDateInput.value);
+      const endDate = normalizeDate(endDateInput.value);
+
+      if (!startDate) {
+        showToast('Start date is required.', 'error');
+        startDateInput.focus();
+        return;
+      }
+
+      if (!isValidDate(startDate)) {
+        showToast('Invalid start date. Use YYYY-MM-DD or DD/MM/YYYY format.', 'error');
+        startDateInput.focus();
+        return;
+      }
+
+      if (!isValidDate(endDate)) {
+        showToast('Invalid end date. Use YYYY-MM-DD or DD/MM/YYYY format.', 'error');
+        endDateInput.focus();
+        return;
+      }
+
+      // Update the input values with normalized dates
+      if (startDate) startDateInput.value = startDate;
+      if (endDate) endDateInput.value = endDate;
 
       const editId = document.getElementById('editId').value;
       const data = {
@@ -867,8 +918,8 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
         type: document.getElementById('type').value,
         venue_name: document.getElementById('venue_name').value,
         venue_address: document.getElementById('venue_address').value || null,
-        start_date: document.getElementById('start_date').value,
-        end_date: document.getElementById('end_date').value || null,
+        start_date: startDate,
+        end_date: endDate,
         price_from: document.getElementById('price_from').value ? parseFloat(document.getElementById('price_from').value) : null,
         ticket_url: document.getElementById('ticket_url').value || null,
         lottery_url: document.getElementById('lottery_url').value || null,
