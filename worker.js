@@ -682,6 +682,9 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
             <th class="sortable" data-sort="start_date">Start Date <span class="sort-icon"></span></th>
             <th class="sortable" data-sort="end_date">End Date <span class="sort-icon"></span></th>
             <th class="sortable" data-sort="status">Status <span class="sort-icon"></span></th>
+            <th title="Tickets">🎟️</th>
+            <th title="Lottery">🎲</th>
+            <th title="Rush">⚡</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -753,6 +756,9 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
             <td>\${m.start_date}</td>
             <td>\${m.end_date || 'Open Run'}</td>
             <td><span class="badge \${isActive ? 'badge-active' : 'badge-ended'}">\${isActive ? 'Active' : 'Ended'}</span></td>
+            <td>\${m.ticket_url ? '<a href="' + escapeHtml(m.ticket_url) + '" target="_blank">URL</a>' : '-'}</td>
+            <td>\${m.lottery_url ? '<a href="' + escapeHtml(m.lottery_url) + '" target="_blank">URL</a>' : '-'}</td>
+            <td>\${m.rush_url ? '<a href="' + escapeHtml(m.rush_url) + '" target="_blank">URL</a>' : '-'}</td>
             <td class="actions">
               <button class="btn btn-secondary btn-sm" onclick="editMusical(\${m.id})">Edit</button>
               <button class="btn btn-danger btn-sm" onclick="deleteMusical(\${m.id})">Delete</button>
