@@ -1337,18 +1337,55 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       padding: 24px;
       transition: transform 0.3s, box-shadow 0.3s;
       border: 1px solid rgba(255, 255, 255, 0.1);
-      position: relative;
     }
-    .ticket-badges {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
-    .ticket-badge {
+    .title-row {
       display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .card-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 0; }
+    .title-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 5px 8px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: #fff;
+      transition: all 0.2s ease;
+      border: 1px solid #e94560;
+    }
+    .title-badge:hover {
+      background: rgba(0, 0, 0, 0.9);
+      transform: scale(1.05);
+    }
+    .title-badge.tickets:hover {
+      border-color: #ff6b8a;
+      box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
+    }
+    .title-badge.lottery { border-color: #a855f7; }
+    .title-badge.lottery:hover {
+      border-color: #c084fc;
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
+    }
+    .title-badge.rush { border-color: #f59e0b; }
+    .title-badge.rush:hover {
+      border-color: #fbbf24;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+    }
+    .card-venue { color: #f5af19; font-size: 0.95rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .venue-icons { display: inline-flex; gap: 6px; }
+    .venue-badge {
+      display: inline-flex;
       align-items: center;
       gap: 4px;
       background: rgba(0, 0, 0, 0.6);
@@ -1358,60 +1395,32 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       font-weight: 600;
       text-decoration: none;
       color: #fff;
-      transition: background 0.2s;
+      transition: all 0.2s ease;
+      border: 1px solid #f5af19;
     }
-    .ticket-badge:hover {
-      background: rgba(0, 0, 0, 0.8);
+    .venue-badge:hover {
+      background: rgba(0, 0, 0, 0.9);
+      transform: scale(1.05);
+      border-color: #fbbf24;
+      box-shadow: 0 0 8px rgba(245, 175, 25, 0.5);
     }
-    .ticket-badge.lottery { border: 1px solid #a855f7; }
-    .ticket-badge.rush { border: 1px solid #f59e0b; }
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 15px 40px rgba(233, 69, 96, 0.2);
-      border-color: #e94560;
-    }
-    .card-badge {
-      display: inline-block;
-      background: #e94560;
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      margin-bottom: 12px;
-    }
-    .card-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
-    .card-venue { color: #f5af19; font-size: 0.95rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .venue-icons { display: inline-flex; gap: 6px; }
-    .venue-icon {
-      font-size: 0.85rem;
-      text-decoration: none;
-      opacity: 0.7;
-      transition: opacity 0.2s;
-    }
-    .venue-icon:hover { opacity: 1; }
-    .card-desc { color: #aaa; font-size: 0.9rem; margin-bottom: 15px; line-height: 1.5; }
     .card-meta {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-top: 10px;
       font-size: 0.85rem;
       color: #999;
     }
-    .card-price { color: #4ade80; font-weight: 600; }
-    .card-btn {
-      display: block;
-      text-align: center;
-      padding: 12px 20px;
-      background: linear-gradient(90deg, #e94560, #f5af19);
-      color: #fff;
-      text-decoration: none;
-      border-radius: 25px;
+    .card-type-badge {
+      background: rgba(233, 69, 96, 0.3);
+      color: #e94560;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 0.7rem;
       font-weight: 600;
-      transition: opacity 0.3s, transform 0.3s;
+      text-transform: uppercase;
     }
-    .card-btn:hover { opacity: 0.9; transform: scale(1.02); }
     .schedule-grid-public {
       display: flex;
       justify-content: center;
@@ -1646,19 +1655,18 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       } catch (e) { return ''; }
     }
 
-    function renderTicketBadges(m) {
+    function renderTitleBadges(m) {
       let html = '';
-      if (m.lottery_url || m.rush_url) {
-        html = '<div class="ticket-badges">';
-        if (m.lottery_url) {
-          const lotteryPrice = m.lottery_price ? '£' + m.lottery_price.toFixed(0) : '';
-          html += '<a href="' + escapeHtml(m.lottery_url) + '" target="_blank" rel="noopener" class="ticket-badge lottery">🎲 ' + lotteryPrice + '</a>';
-        }
-        if (m.rush_url) {
-          const rushPrice = m.rush_price ? '£' + m.rush_price.toFixed(0) : '';
-          html += '<a href="' + escapeHtml(m.rush_url) + '" target="_blank" rel="noopener" class="ticket-badge rush">⚡ ' + rushPrice + '</a>';
-        }
-        html += '</div>';
+      if (m.ticket_url) {
+        html += '<a href="' + escapeHtml(m.ticket_url) + '" target="_blank" rel="noopener" class="title-badge tickets">🎟️ Tickets</a>';
+      }
+      if (m.lottery_url) {
+        const lotteryPrice = m.lottery_price ? '£' + m.lottery_price.toFixed(0) : '';
+        html += '<a href="' + escapeHtml(m.lottery_url) + '" target="_blank" rel="noopener" class="title-badge lottery">🎲 ' + lotteryPrice + '</a>';
+      }
+      if (m.rush_url) {
+        const rushPrice = m.rush_price ? '£' + m.rush_price.toFixed(0) : '';
+        html += '<a href="' + escapeHtml(m.rush_url) + '" target="_blank" rel="noopener" class="title-badge rush">⚡ ' + rushPrice + '</a>';
       }
       return html;
     }
@@ -1667,8 +1675,8 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       if (!venueAddress) return '';
       const query = encodeURIComponent(venueName + ' ' + venueAddress);
       return '<span class="venue-icons">' +
-        '<a href="https://www.google.com/maps/search/?api=1&query=' + query + '" target="_blank" rel="noopener" class="venue-icon" title="View on map">📍</a>' +
-        '<a href="https://www.google.com/maps/dir/?api=1&destination=' + query + '" target="_blank" rel="noopener" class="venue-icon" title="Get directions">🧭</a>' +
+        '<a href="https://www.google.com/maps/search/?api=1&query=' + query + '" target="_blank" rel="noopener" class="venue-badge" title="View on map">📍</a>' +
+        '<a href="https://www.google.com/maps/dir/?api=1&destination=' + query + '" target="_blank" rel="noopener" class="venue-badge" title="Get directions">🧭</a>' +
         '</span>';
     }
 
@@ -1679,16 +1687,13 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
       let dateText;
       if (isSingleDay) {
-        // Single day show/concert
         const dateFormatted = new Date(m.start_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
         dateText = 'Only on ' + dateFormatted;
       } else if (hasStarted) {
-        // Show started - display end date only
         dateText = m.end_date
           ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
           : 'Open run';
       } else {
-        // Show not started yet - display both dates (or just start if open run)
         const startFormatted = new Date(m.start_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
         if (m.end_date) {
           const endFormatted = new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -1698,20 +1703,14 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
         }
       }
 
-      const price = m.price_from ? 'From £' + m.price_from.toFixed(2) : '';
-
       return '<div class="card">' +
-        renderTicketBadges(m) +
-        '<div class="card-badge">' + escapeHtml(m.type) + '</div>' +
-        '<h3 class="card-title">' + escapeHtml(m.title) + '</h3>' +
+        '<div class="title-row"><h3 class="card-title">' + escapeHtml(m.title) + '</h3>' + renderTitleBadges(m) + '</div>' +
         '<p class="card-venue"><span>' + escapeHtml(m.venue_name) + '</span>' + renderVenueIcons(m.venue_name, m.venue_address) + '</p>' +
-        (m.description ? '<p class="card-desc">' + escapeHtml(m.description) + '</p>' : '') +
         renderScheduleDots(m.schedule) +
         '<div class="card-meta">' +
         '<span class="card-date">' + dateText + '</span>' +
-        (price ? '<span class="card-price">' + price + '</span>' : '') +
+        '<span class="card-type-badge">' + escapeHtml(m.type) + '</span>' +
         '</div>' +
-        (m.ticket_url ? '<a href="' + escapeHtml(m.ticket_url) + '" target="_blank" rel="noopener" class="card-btn">Get Tickets</a>' : '') +
         '</div>';
     }
 
