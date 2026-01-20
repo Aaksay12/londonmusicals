@@ -1946,9 +1946,23 @@ function getShowcardsDemo() {
     if (!venueAddress) return '';
     const query = encodeURIComponent(venueName + ' ' + venueAddress);
     return '<span class="venue-icons-d">' +
-      '<a href="https://www.google.com/maps/search/?api=1&query=' + query + '" target="_blank" rel="noopener" class="venue-badge" title="View on map">📍 Map</a>' +
-      '<a href="https://www.google.com/maps/dir/?api=1&destination=' + query + '" target="_blank" rel="noopener" class="venue-badge" title="Get directions">🧭 Directions</a>' +
+      '<a href="https://www.google.com/maps/search/?api=1&query=' + query + '" target="_blank" rel="noopener" class="venue-badge" title="View on map">📍</a>' +
+      '<a href="https://www.google.com/maps/dir/?api=1&destination=' + query + '" target="_blank" rel="noopener" class="venue-badge" title="Get directions">🧭</a>' +
       '</span>';
+  }
+
+  function renderTitleBadgesD(m) {
+    let badges = '';
+    if (m.ticket_url) {
+      badges += '<a href="' + escapeHtml(m.ticket_url) + '" target="_blank" rel="noopener" class="title-badge tickets">🎟️ Tickets</a>';
+    }
+    if (m.lottery_url) {
+      badges += '<a href="' + escapeHtml(m.lottery_url) + '" target="_blank" class="title-badge lottery">🎲 £' + (m.lottery_price || 0).toFixed(0) + '</a>';
+    }
+    if (m.rush_url) {
+      badges += '<a href="' + escapeHtml(m.rush_url) + '" target="_blank" class="title-badge rush">⚡ £' + (m.rush_price || 0).toFixed(0) + '</a>';
+    }
+    return badges;
   }
 
   function renderCardD(m) {
@@ -1956,14 +1970,9 @@ function getShowcardsDemo() {
       ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
       : 'Open run';
 
-    const ticketsBadge = m.ticket_url
-      ? '<a href="' + escapeHtml(m.ticket_url) + '" target="_blank" rel="noopener" class="title-badge tickets">🎟️ Tickets</a>'
-      : '';
-
     return '<div class="card variant-d">' +
-      renderTicketBadges(m) +
       '<div class="card-badge">' + escapeHtml(m.type) + '</div>' +
-      '<div class="title-row"><h3 class="card-title">' + escapeHtml(m.title) + '</h3>' + ticketsBadge + '</div>' +
+      '<div class="title-row"><h3 class="card-title">' + escapeHtml(m.title) + '</h3>' + renderTitleBadgesD(m) + '</div>' +
       '<p class="card-venue-d"><span>' + escapeHtml(m.venue_name) + '</span>' + renderVenueIconsD(m.venue_name, m.venue_address) + '</p>' +
       renderScheduleDots(m.schedule) +
       '<div class="card-meta">' +
@@ -2157,9 +2166,9 @@ function getShowcardsDemo() {
       align-items: center;
       gap: 4px;
       background: rgba(0, 0, 0, 0.6);
-      padding: 6px 10px;
+      padding: 5px 8px;
       border-radius: 8px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
       text-decoration: none;
       color: #fff;
@@ -2169,18 +2178,24 @@ function getShowcardsDemo() {
     .title-badge:hover {
       background: rgba(0, 0, 0, 0.8);
     }
+    .title-badge.lottery {
+      border-color: #a855f7;
+    }
+    .title-badge.rush {
+      border-color: #f59e0b;
+    }
     .card-venue-d {
       color: #f5af19;
       font-size: 0.95rem;
       margin-bottom: 10px;
       display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .venue-icons-d {
-      display: flex;
+      align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+    }
+    .venue-icons-d {
+      display: inline-flex;
+      gap: 6px;
     }
     .venue-badge {
       display: inline-flex;
