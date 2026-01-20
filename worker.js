@@ -881,9 +881,17 @@ const ADMIN_TEMPLATE = `<!DOCTYPE html>
         const values = [];
         let current = '';
         let inQuotes = false;
+        const line = lines[i];
 
-        for (const char of lines[i]) {
-          if (char === '"') {
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          const nextChar = line[j + 1];
+
+          if (char === '"' && inQuotes && nextChar === '"') {
+            // Escaped quote ("") - add single quote and skip next char
+            current += '"';
+            j++;
+          } else if (char === '"') {
             inQuotes = !inQuotes;
           } else if (char === ',' && !inQuotes) {
             values.push(current.trim());
