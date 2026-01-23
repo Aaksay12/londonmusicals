@@ -385,9 +385,15 @@ async function generateHTML(env) {
     }));
 }
 
+function formatDateSafe(dateStr) {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function renderCard(musical) {
   const endDate = musical.end_date
-    ? new Date(musical.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? formatDateSafe(musical.end_date)
     : 'Open run';
   const price = musical.price_from ? `From £${musical.price_from.toFixed(2)}` : '';
 
@@ -1621,6 +1627,14 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
       return div.innerHTML;
     }
 
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      // Parse YYYY-MM-DD without timezone issues
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
     function formatTime(timeStr) {
       if (!timeStr) return '-';
       // Convert 24h format (19:30) to 12h format (7:30pm)
@@ -1687,19 +1701,14 @@ const HTML_TEMPLATE = `<!DOCTYPE html>
 
       let dateText;
       if (isSingleDay) {
-        const dateFormatted = new Date(m.start_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
-        dateText = 'Only on ' + dateFormatted;
+        dateText = 'Only on ' + formatDate(m.start_date);
       } else if (hasStarted) {
-        dateText = m.end_date
-          ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
-          : 'Open run';
+        dateText = m.end_date ? 'Until ' + formatDate(m.end_date) : 'Open run';
       } else {
-        const startFormatted = new Date(m.start_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
         if (m.end_date) {
-          const endFormatted = new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
-          dateText = 'From ' + startFormatted + ' until ' + endFormatted;
+          dateText = 'From ' + formatDate(m.start_date) + ' until ' + formatDate(m.end_date);
         } else {
-          dateText = 'From ' + startFormatted;
+          dateText = 'From ' + formatDate(m.start_date);
         }
       }
 
@@ -1919,10 +1928,16 @@ function getShowcardsDemo() {
       '</span>';
   }
 
+  function formatDateLocal(dateStr) {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
   function renderCard(m, variant = '') {
     const price = m.price_from ? 'From £' + m.price_from.toFixed(2) : '';
     const endDate = m.end_date
-      ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
+      ? 'Until ' + formatDateLocal(m.end_date)
       : 'Open run';
 
     return '<div class="card ' + variant + '">' +
@@ -1966,7 +1981,7 @@ function getShowcardsDemo() {
 
   function renderCardD(m) {
     const endDate = m.end_date
-      ? 'Until ' + new Date(m.end_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })
+      ? 'Until ' + formatDateLocal(m.end_date)
       : 'Open run';
 
     return '<div class="card variant-d">' +
